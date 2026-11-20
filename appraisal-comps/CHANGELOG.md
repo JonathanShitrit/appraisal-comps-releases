@@ -2,6 +2,15 @@
 
 Release steps: `maintainer/Maintainer Checklist.md` step 10.
 
+## 0.9.1 (2026-11-19)
+
+Principles touched (`docs/Design Principles.md`): one rule in one place (the install steps live only in the install guide; his README points to it).
+
+What changed:
+- The update steps Claude gives him use the desktop app's current menu: Customize, then Plugins, then Discover, then Personal.
+- His folder's `README.md` is rewritten for everyday use: what's in the folder, where Claude stops for him, the work sites in his own Chrome (connect page, logins, tab group, human checks), updates, and what to do when something goes wrong. Setup copies it only into a new folder; an existing folder keeps its old copy.
+- The install steps moved to an install guide on the releases repo's page, so he can read them before setup.
+
 ## 0.9.0 (2026-11-19)
 
 Principles touched (`docs/Design Principles.md`): deterministic limits, Rule of Two, each part fixes a seen weakness (the work sites flagged the plugin's own browser as a bot, and Zillow's human check couldn't be cleared in it).

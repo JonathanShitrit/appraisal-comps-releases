@@ -1,16 +1,15 @@
 # Appraisal Comps workflow
 
-Claude prepares comp data and drafts. The appraiser makes every selection, adjustment and value conclusion. The agent's rules, the workflow stages and the skills all come from the `appraisal-comps` plugin; this folder holds only your settings and data.
+Claude prepares comp data and drafts. You make every selection, adjustment and value conclusion. Claude's rules, the workflow stages and the skills come from the `appraisal-comps` plugin; this folder holds only your settings and data.
 
-## Where each thing lives (one place per topic)
+## What's in this folder
 
-| Topic | File |
+| Folder | What it holds |
 | --- | --- |
-| Agent rules, workflow stages, folder ownership | shown by the plugin at the start of every session |
-| Step-by-step for each stage | the plugin's skills, run automatically for each stage |
-| Measurement conventions, ranking weights | `settings/conventions.md` |
-| Which sites the browser can read | built into the plugin; ask Claude "Which sites can you read?" |
-| What changed in each version | shown by the plugin when an update installs |
+| `settings/` | Your conventions (`conventions.md`: measurement rules, ranking weights) and your export name. Updates never overwrite it. |
+| `assignments/` | One folder per job. |
+| `shared/` | What carries over between jobs: building line measurements, corrections, lessons. |
+| `exports/` | Learning exports. You decide whether to send them. |
 
 ## What to say to Claude
 
@@ -18,29 +17,51 @@ You don't need any commands. Say what you want:
 
 | To | Say |
 | --- | --- |
-| set up this folder (once) | "Set up this folder" |
 | start a job | "New assignment: 123 Main St, Brooklyn" |
 | read a work site | "Open Zillow" or paste a listing link |
+| see which sites Claude can read | "Which sites can you read?" |
 | finish a job | "This assignment is done" |
 | send what Claude learned | "Run the learning export" |
 
-## The update loop
+## Where Claude stops for you
 
-1. **Appraiser works** as usual. Each stage logs timing, and close-out records line measurements, comp choices and corrections.
-2. **Weekly export.** He asks Claude to "run the learning export", reviews the manifest, approves, and sends the zip from `exports/` to the maintainer himself.
-3. **Maintainer improves** the plugin and publishes a new version.
-4. **Install the update.** Claude says at session start when an update is ready. Say yes, and it gives you the install steps one at a time; start a new chat when it's done. If an update causes a problem, tell the maintainer, who publishes a fix. Your data stays readable by the version before, so going back is safe too.
+Claude stops and waits for you at each of these:
 
-## First-time setup (once)
+1. **Intake:** you confirm the subject record.
+2. **Pool and rank:** you approve the shortlist.
+3. **Comp grid:** you choose the comps and make the adjustments.
+4. **Close-out:** you say the assignment is done.
+5. **Learning export:** you review what's in it and approve it.
 
-- In the Claude desktop app: Customize → Directory → Plugins → Personal → **+** → Add marketplace → `JonathanShitrit/appraisal-comps-releases`, then install `appraisal-comps`.
-- Select an empty folder for this workflow (not one synced by OneDrive, iCloud or another sync service).
-- Say "Set up this folder" and answer its one question (your name for the learning exports).
-- Confirm `python3` runs and HTTPS downloads work, and that Node and Google Chrome are installed (the browser needs both; setup asks you to add the Playwright Extension to Chrome).
+## Work sites in your Chrome
+
+Claude reads the work sites in your own Chrome, where you're already logged in.
+
+- **Connect page.** Each session, the first time Claude opens a site, Chrome shows a connect page. Approve it once.
+- **Logging in.** If a site shows a login page, Claude asks you to log in yourself in Chrome. It never types a password.
+- **Its own tabs.** Claude opens its pages in its own tab group and tells you when it does.
+- **Human checks.** If a site shows a check like "Press & Hold" or "verify you are human", Claude stops and asks you to clear it in Chrome yourself, then carries on. It never clicks on these checks.
+
+## Updates
+
+1. **You work as usual.** Claude logs how long each stage takes, and close-out records line measurements, comp choices and corrections.
+2. **Weekly, say "Run the learning export".** Review what's in it, approve it, and send the zip from `exports/` to the maintainer yourself.
+3. **The maintainer improves the plugin** and publishes a new version.
+4. **Install it.** At the start of a chat, Claude says when an update is ready. Say yes, and it gives you the install steps one at a time; start a new chat when it's done. The first time you open a chat after an update, Claude tells you what changed. If an update causes a problem, tell the maintainer, who publishes a fix.
+
+## If something goes wrong
+
+- **"I couldn't check for updates today."** Harmless. Your work carries on, and Claude checks again another day.
+- **Claude says an update didn't finish and it can't start work.** Send the line it shows to the maintainer. Claude starts no assignment work until it's fixed.
+- **Anything else looks wrong.** Tell Claude what you saw, and tell the maintainer.
+
+## First-time setup
+
+Setup is done once, following the install guide: https://github.com/JonathanShitrit/appraisal-comps-releases. Before your first real job, fill in `settings/conventions.md` with the maintainer; until then, Claude asks you about anything still blank.
 
 ## Don't
 
 - Don't sync, zip or share `assignments/` outside the learning export.
-- Don't add email, chat, CRM or upload connectors to this Claude project.
+- Don't add email, chat, CRM or upload connectors to Claude.
 - Don't edit the plugin's files. Send changes back to the maintainer instead.
-- Check the work computer's IT rules before installing anything or using a shared drive.
+- Check the work computer's IT rules before installing anything new or using a shared drive.

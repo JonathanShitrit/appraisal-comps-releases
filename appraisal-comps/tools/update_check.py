@@ -37,7 +37,7 @@ TEST_LATEST_ENV = "APPRAISAL_COMPS_TEST_LATEST"
 DOWNLOAD_HOST = "release-assets.githubusercontent.com"  # Confirmed 2026-11-17: a single redirect from github.com lands here.
 
 INSTALL_HOW = (
-    "In Claude, open Customize, then Directory, then Plugins, then Personal. "
+    "In Claude, open Customize, then Plugins, then Discover, then Personal. "
     "Click the ... next to appraisal-comps, then Check for updates. Then open "
     "Settings, then Plugins, then Appraisal Comps, and click Update. Start a "
     "new chat when it's done."
