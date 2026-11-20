@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
-sites.py - the work sites the browser may open in the appraiser's logged-in
-profile (Task 6: "Read-tier browser"). The list is the maintainer's and ships
+sites.py - the work sites the browser may open in the appraiser's own
+Chrome (Task 6: "Read-tier browser"). The list is the maintainer's and ships
 with the plugin: every site on it is on, and nothing in the appraiser's
 folder can add one or switch one off. To add a site, add it to SITES and
 release; if its login goes through another address, add that origin to
 the site, or the guard blocks the login page.
 
-guard.py checks each address Claude opens against these origins, and
-launch.py passes them to the browser's own --allowed-origins too. Neither
-stops a listed site from redirecting elsewhere (Playwright's docs: not a
-security boundary, and it doesn't affect redirects).
+These origins go to guard.py only: it checks each address Claude opens
+against them. That doesn't stop a listed site from redirecting elsewhere.
 """
 from __future__ import annotations
 

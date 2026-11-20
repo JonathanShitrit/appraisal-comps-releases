@@ -12,7 +12,8 @@ script, or report the failure to the maintainer.
 """
 from __future__ import annotations
 
-import csv, importlib.util, json, os, shutil, stat, subprocess, sys, tempfile, time
+import csv, importlib.util, json, os, shutil, stat, subprocess, sys, tempfile, time, zipfile
+from datetime import date
 from pathlib import Path
 
 PRODUCT = Path(__file__).resolve().parents[1]
@@ -684,10 +685,13 @@ def test_ledger_and_export(tmp):
     check("ledger: events written", code == 0 and (a / "events.csv").exists(), out)
     code, out = run(led, "error", "--assignment", asg, "--stage", "4", "--code", "NOT_A_CODE", cwd=root)
     check("ledger: unknown error code refused with the list", code == 2 and "DIGIT_FLAGGED" in out)
+    code, out = run(led, "error", "--assignment", asg, "--stage", "1", "--code", "BROWSER_CHALLENGE",
+                    "--detail", "Zillow", cwd=root)
+    check("ledger: BROWSER_CHALLENGE accepted", code == 0, out)
     code, out = run(led, "correction", "--assignment", asg, "--stage", "4", "--found-by", "reviewer",
                     "--category", "digit", "--field", "Bed width", "--ai-value", "7-8", "--corrected-value", "7-3",
                     "--note", "lender asked", cwd=root)
-    check("ledger: client/lender words in notes refused", code == 2 and "property facts" in out, out)
+    check("ledger: any note accepted", code == 0, out)
     code, out = run(led, "check", cwd=root)
     check("ledger: check passes on a clean folder", code == 0, out)
     ledger_spec = importlib.util.spec_from_file_location("ledger", led)
@@ -728,35 +732,119 @@ def test_ledger_and_export(tmp):
         for ev in ("start", "done"):
             run(led, "event", "--assignment", house_asg, "--stage", st, "--event", ev, cwd=root)
 
-    for mode in ("firm", "external"):
-        if not (root / "settings/export.json").exists():
-            run(exp, "init", "--contributor", "A-001", "--mode", mode, cwd=root)
-        else:
-            run(exp, "mode", mode, cwd=root)
-        write(root / "shared/lessons.md", "# Lessons\n- Borrower J. Doe called, jdoe@example.com\n")
-        code, out = run(exp, "build", cwd=root)
-        check(f"export {mode}: leak scan BLOCKS an email in lessons.md", code == 1 and "BLOCKED" in out, out[-300:])
-        write(root / "shared/lessons.md", "# Lessons\n- Check the dining dimension string before adding it\n")
-        code, out = run(exp, "build", cwd=root)
-        check(f"export {mode}: leak scan PASSES clean data", code == 0 and "Result: PASS" in out, out[-400:])
-        check(f"export {mode}: subject unit BBL never exported",
-              not any("1000010001" in f.read_text() for f in (root / "exports/_pending").rglob("*") if f.is_file()))
-        house_rows = []
-        for f in (root / "exports/_pending").rglob("assignments.csv"):
-            for row in csv.DictReader(open(f, newline="")):
-                if row.get("building_type") == "single-family":
-                    house_rows.append(row)
-        house_row = house_rows[0] if house_rows else {}
-        check(f"export {mode}: house size band comes from gla_sqft",
-              house_row.get("size_band_sqft") == "1250-1299", house_row)
-        check(f"export {mode}: sketch-only plan counts as measured", house_row.get("plans_measured") == "1", house_row)
-        result_rows = []
-        for f in (root / "exports/_pending").rglob("plan_results.csv"):
-            result_rows += list(csv.DictReader(open(f, newline="")))
-        check(f"export {mode}: sketch result exported with its outline total",
-              any(r.get("outline_sqft") == "1260" and r.get("convention_sqft") == "1260" for r in result_rows),
-              result_rows)
+    # an open assignment (stage 1 started only) must stay out of the export
+    open_asg = "2026-01-07_3-open-st"
+    copy_writable(PRODUCT / "templates/assignment", root / "assignments" / open_asg)
+    run(led, "event", "--assignment", open_asg, "--stage", "1", "--event", "start", cwd=root)
+    code, out = run(led, "correction", "--assignment", open_asg, "--stage", "1", "--found-by", "appraiser",
+                    "--category", "other", "--field", "Open job field", "--ai-value", "a", "--corrected-value", "b",
+                    cwd=root)
+    check("ledger: correction on an open assignment written", code == 0, out)
+    plan_image_bytes = b"\x89PNG\r\n\x1a\nfake"
+    (house / "plans/subject.png").write_bytes(plan_image_bytes)
+    write(root / "shared/lessons.md", "# Lessons\n- Lender asked for a 4th comp, jdoe@example.com\n")
+    setup = plugin / "tools/setup_workspace.py"
 
+    empty_folder = tmp / "empty-for-bad-name"
+    empty_folder.mkdir()
+    code, out = run(setup, "--into", empty_folder, "--name", "D Cohen")
+    check("setup: refuses a name with a space", code == 2 and not any(empty_folder.iterdir()), out)
+    fresh_folder = tmp / "fresh-without-name"
+    code, out = run(setup, "--into", fresh_folder)
+    check("setup: without --name writes no export.json",
+          code == 0 and not (fresh_folder / "settings/export.json").exists(), out)
+
+    # a copy of the workspace before his name is saved, for the 0.7.0 settings check
+    old_root = tmp / "Appraisal Comps 0.7.0"
+    shutil.copytree(root, old_root)
+
+    code, out = run(exp, "build", cwd=root)
+    check("export: build without a name names setup", code == 2 and "setup_workspace.py" in out, out)
+    code, out = run(setup, "--into", root, "--name", "dcohen", cwd=root)
+    saved_settings = root / "settings/export.json"
+    check("setup: saves his name", code == 0 and saved_settings.exists()
+          and json.loads(saved_settings.read_text()) == {"name": "dcohen"}, out)
+
+    pending = root / "exports/_pending" / date.today().isoformat()
+    code, out = run(exp, "build", cwd=root)
+    pending_lessons = pending / "raw/shared/lessons.md"
+    check("export: build passes with an email and a lender word", code == 0 and pending_lessons.exists()
+          and "jdoe@example.com" in pending_lessons.read_text(), out[-400:])
+
+    def table_rows(file_name):
+        table = pending / "tables" / file_name
+        if not table.exists():
+            return []
+        with open(table, newline="") as f:
+            return list(csv.DictReader(f))
+
+    assignment_rows = table_rows("assignments.csv")
+    subject_rows = [row for row in assignment_rows if row.get("assignment") == asg]
+    subject_row = subject_rows[0] if subject_rows else {}
+    check("export: subject identity exported", subject_row.get("bbl") == "1000010001"
+          and subject_row.get("address") == "1 TEST ST" and subject_row.get("effective_date") == "2026-01-05",
+          assignment_rows)
+    house_rows = [row for row in assignment_rows if row.get("assignment") == house_asg]
+    house_row = house_rows[0] if house_rows else {}
+    check("export: house exact size", house_row.get("size_sqft") == "1260"
+          and house_row.get("plans_measured") == "1", house_row)
+    result_rows = table_rows("plan_results.csv")
+    check("export: sketch result exported",
+          any(row.get("plan") == f"{house_asg}/subject" and row.get("outline_sqft") == "1260" for row in result_rows),
+          result_rows)
+    copied_image = pending / "raw/assignments" / house_asg / "plans/subject.png"
+    check("export: plan image copied byte for byte",
+          copied_image.exists() and copied_image.read_bytes() == plan_image_bytes)
+    check("export: settings copied without export.json", (pending / "raw/settings/conventions.md").exists()
+          and not any(path.name == "export.json" for path in pending.rglob("*")))
+    open_in_raw = any(open_asg in str(path) for path in (pending / "raw").rglob("*"))
+    open_in_tables = any(open_asg in table.read_text() for table in (pending / "tables").glob("*.csv"))
+    check("export: open assignment left out", (pending / "raw").exists() and not open_in_raw and not open_in_tables)
+    raw_corrections = pending / "raw/shared/corrections.csv"
+    check("export: open assignment's correction kept in raw/shared only",
+          raw_corrections.exists() and open_asg in raw_corrections.read_text()
+          and open_asg not in (pending / "tables/corrections.csv").read_text())
+    adjustments_table = pending / "tables/adjustments.csv"
+    check("export: empty table keeps its header", adjustments_table.exists()
+          and adjustments_table.read_text().startswith("assignment,"))
+    readme = pending / "README.md"
+    table_names = [table.name for table in (pending / "tables").glob("*.csv")]
+    check("export: README describes every table", readme.exists() and table_names
+          and all(name in readme.read_text() for name in table_names), table_names)
+    write(pending / "raw/stale.txt", "left over from an earlier build\n")
+    code, out = run(exp, "build", cwd=root)
+    check("export: rebuild clears stale files", code == 0 and not (pending / "raw/stale.txt").exists(), out[-400:])
+
+    code, out = run(exp, "approve", cwd=root)
+    export_folder = f"{date.today().isoformat()}_learning_dcohen"
+    zip_path = root / "exports" / f"{export_folder}.zip"
+    zip_names = zipfile.ZipFile(zip_path).namelist() if zip_path.exists() else []
+    expected_names = [f"{export_folder}/README.md", f"{export_folder}/tables/assignments.csv",
+                      f"{export_folder}/raw/assignments/{house_asg}/plans/subject.png"]
+    check("export: approve makes the named zip",
+          code == 0 and all(name in zip_names for name in expected_names), out + str(zip_names[:10]))
+
+    write(old_root / "settings/export.json", json.dumps({"contributor": "A-001", "mode": "external", "salt": "x"}))
+    code, out = run(exp, "build", cwd=old_root)
+    old_manifest = old_root / "exports/_pending" / date.today().isoformat() / "MANIFEST.md"
+    check("export: 0.7.0 settings still build", code == 0 and old_manifest.exists()
+          and "A-001" in old_manifest.read_text(), out[-400:])
+
+    # a hand-edited name that isn't safe in a file name is refused before anything is written
+    old_settings = old_root / "settings/export.json"
+    old_settings_text = old_settings.read_text()
+    files_before = sorted(str(path) for path in tmp.rglob("*"))
+    write(old_settings, json.dumps({"name": "../x"}))
+    build_code, build_out = run(exp, "build", cwd=old_root)
+    approve_code, approve_out = run(exp, "approve", cwd=old_root)
+    old_settings.write_text(old_settings_text)
+    files_after = sorted(str(path) for path in tmp.rglob("*"))
+    check("export: hand-edited name ../x refused",
+          build_code == 2 and approve_code == 2 and "setup_workspace.py" in build_out
+          and "setup_workspace.py" in approve_out and files_after == files_before, build_out + approve_out)
+    code, out = run(exp, "approve", cwd=old_root)
+    old_zip = old_root / "exports" / f"{date.today().isoformat()}_learning_A-001.zip"
+    check("export: 0.7.0 contributor code still approves", code == 0 and old_zip.exists(), out)
 
 def guard_action(ws, tool, tool_input):
     code, out = run_hook(GUARD, {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input,
@@ -931,9 +1019,20 @@ def test_browser(tmp):
           "https://app.dwellingblocks.com" in dwelling_blocks.origins, dwelling_blocks.origins)
 
     import launch
-    command = launch.playwright_command(tmp / "profile")
-    check("launch: every built-in origin passed to the browser",
-          command[command.index("--allowed-origins") + 1] == ";".join(origins), command)
+    command = launch.playwright_command()
+    check("launch: extension mode in real Chrome",
+          command == ["npx", "-y", "@playwright/mcp@0.0.85", "--extension", "--browser", "chrome"], command)
+    check("launch: no origin allowlist or separate profile",
+          "--allowed-origins" not in command and "--user-data-dir" not in command, command)
+    present = tmp / "b/chrome-present"
+    write(present, "")
+    check("launch: finds Chrome at the first candidate that exists",
+          launch.find_chrome((tmp / "b/nope", present)) == present)
+    check("launch: no Chrome found gives None", launch.find_chrome((tmp / "b/nope",)) is None)
+    check("launch: looks in both Applications folders",
+          [str(path) for path in launch.CHROME_CANDIDATES] == [
+              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+              str(Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome")])
     # It needs no Appraisal Comps folder (nothing to read from it), so it never
     # waits for one. With no npx on PATH it stops at once, on stderr only.
     empty = tmp / "b/empty"

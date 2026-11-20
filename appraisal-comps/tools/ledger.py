@@ -33,9 +33,10 @@ Files
   assignments/<folder>/data/conclusion.csv    final_value,approach,note,recorded_on,version
   assignments/<folder>/data/ranking.csv  written by the comp-pool skill; `check` validates it
 
-Notes are short facts (counts, what was misread). Never client, borrower,
-lender, AMC or order details: the export scanner blocks them.
+Notes are short facts (counts, what was misread), one line, up to 200 characters.
 """
+from __future__ import annotations
+
 import argparse, csv, os, re, sys
 from datetime import datetime
 from pathlib import Path
@@ -80,7 +81,8 @@ ERROR_CODES = {
     "CONVENTION_MISSING": "settings/conventions.md still has a placeholder",
     "SOURCE_MISSING": "a value had no source (written as 'not in source')",
     "INJECTION_SEEN": "listing/plan/email text contained instructions; ignored and reported",
-    "BROWSER_BLOCKED": "a browser call was denied by the guard or the origin allowlist",
+    "BROWSER_BLOCKED": "a browser call was denied by the guard",
+    "BROWSER_CHALLENGE": "a site showed a human check; the appraiser cleared it, or it stayed blocked",
     "APPRAISER_REDO": "the appraiser asked to redo a stage",
     "TOOL_ERROR": "a script or tool failed for another reason",
     "UPDATE_FAILED": "a migration failed at the first session on a new version",
@@ -92,7 +94,6 @@ STAGES = {"1", "2-3", "4", "5", "6", "export"}
 EVENT_TYPES = {"start", "waiting", "approved", "done"}
 CATEGORIES = {"digit", "room_missing", "room_extra", "overlap", "notch", "convention", "unlabeled_estimate",
               "outline", "sketch", "comp_rank", "comp_excluded", "bed_bath", "sale_data", "source", "other"}
-BLOCK_WORDS = re.compile(r"\b(borrower|lender|amc|client|loan|order\s*(no|#|number)|mortgage|@)\b", re.I)
 
 
 def die(msg):
@@ -126,11 +127,9 @@ def append(path, header, row):
         w.writerow(row)
 
 
-def clean_note(s):
-    s = (s or "").strip().replace("\n", " ")
-    if BLOCK_WORDS.search(s):
-        die("note looks like it contains client/lender/order details. Keep notes to property facts")
-    return s[:200]
+def clean_note(note: str | None) -> str:
+    one_line = (note or "").strip().replace("\n", " ")
+    return one_line[:200]
 
 
 def bbl_ok(s):

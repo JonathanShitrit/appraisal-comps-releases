@@ -2,6 +2,38 @@
 
 Release steps: `maintainer/Maintainer Checklist.md` step 10.
 
+## 0.9.0 (2026-11-19)
+
+Principles touched (`docs/Design Principles.md`): deterministic limits, Rule of Two, each part fixes a seen weakness (the work sites flagged the plugin's own browser as a bot, and Zillow's human check couldn't be cleared in it).
+
+What changed:
+- Claude now reads the work sites in his own Chrome, where he's already logged in, instead of a separate browser the plugin opened. Sites see his everyday browser, not a separate automated one.
+- One-time install: the Playwright Extension in his Chrome, in the profile where he's logged in to the work sites (https://chromewebstore.google.com/detail/mmlmfjhmonkocbjadbfplnigmagldckm). Setup asks for it. **If you're updating from 0.7.0, install the extension first;** without it the first browser call waits on a connect page that never connects.
+- Each session, the first time Claude opens a site, Chrome shows a connect page; he approves it once. Claude works in its own tab group and says so.
+- When a site shows a human check ("Press & Hold", "verify you are human"), Claude stops and asks him to clear it in Chrome himself, then carries on. Claude never clicks or presses keys on it. New ledger code `BROWSER_CHALLENGE`.
+- Needs Google Chrome and Node. The old plugin browser folder is left alone; nothing uses it now.
+
+Rule of Two and known limits:
+- Which tabs Claude can reach rests on the extension (its tab group), not on the guard. Desktop check 2 records what it shows.
+- `--allowed-origins` is gone, so the guard's check on the addresses Claude opens is the only address limit.
+- Redirects and links Claude clicks are still not limited: a listed site can land on another address and the page loads (desktop check C9). The browser stays read-only there, and its pages are data.
+- The 0.7.0 submit-check limits no longer include a separate profile: the browser is his own Chrome, with his logins. The guard's origin check and the denied upload and script tools remain.
+
+## 0.8.0 (2026-11-19)
+
+Principles touched (`docs/Design Principles.md`): real checks (the leak scan leaves the never-edit list), one rule in one place (the export's data dictionary is generated from its table definitions), simplest setup that works (one export, no modes).
+
+What changed:
+- The learning export carries everything from closed assignments. The zip `exports/<date>_learning_<name>.zip` holds `README.md` (every table and column, how they join), `MANIFEST.md`, `tables/` (summary tables with every column: the subject's address, unit and BBLs, exact dates and sizes, comp prices, his adjustments and value, inspection notes) and `raw/` (each closed assignment folder copied whole, plan images included, all of `shared/`, and `settings/conventions.md`). Open assignments stay out of `tables/` and `raw/assignments/` (the manifest counts them); `raw/shared/` is `shared/` whole.
+- Gone: the `init` and `mode` commands, `--drop` and `--no-selection`, the modes, the salted codes, masking, month-only dates, size and distance bands and the leak scan. He still reviews the manifest and approves, and sends the zip to the maintainer himself.
+- His name is saved at setup: `setup_workspace.py --into <folder> --name dcohen` (lowercase letters and digits, hyphens between). Setup asks one question. The export checks the saved name again with the same rule (`tools/export_name.py`), or a 0.7.0 code like `A-001`, and refuses anything else.
+- A 0.7.0 `settings/export.json` (`contributor`, `mode`, `salt`) keeps working: the export goes under the contributor code, and `mode` and `salt` are ignored. No migration.
+- `ledger.py` accepts any note. Notes are still one line, up to 200 characters.
+- Docs: one home per fact (one rule in one place). `docs/Agent Workflow Plan.md` keeps only why each part exists and points to the script or skill for every limit; the comp-export skill reads the export's contents from its generated `README.md`; the setup steps live only in the setup skill. The current version is stated only in `plugin.json`.
+
+Rule of Two and known limits:
+- The export now holds the subject's identity, inspection notes, logs and plan images. The only gate is his review and approval, and he sends the zip himself; how it travels to the maintainer is out of scope.
+
 ## 0.7.0 (2026-11-19)
 
 0.6.0 was never released; everything below ships in 0.7.0 for the first time.

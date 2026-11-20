@@ -5,40 +5,20 @@ description: Build the weekly learning export from closed-out assignments for th
 
 # Learning export
 
-Purpose: give the product maintainer as much useful data as possible to improve the next version. The appraiser reviews every export. Nothing is sent: the appraiser sends the approved zip himself.
+Purpose: give the product maintainer everything from the appraiser's closed assignments, so the next version can learn from how he worked. The appraiser reviews every export and approves it. Nothing is sent: he sends the approved zip to the maintainer himself.
 
-The script is `${CLAUDE_PLUGIN_ROOT}/tools/export_learning.py`.
-
-## Modes (set once in `settings/export.json`)
-
-- `firm`: the maintainer works inside the appraiser's firm. The export adds comp addresses, BBLs, units, exact sale dates, sale prices and ACRIS links, comps linked to their assignment, and the appraiser's adjustments and final value. Treat it as confidential firm data: transfer it only through firm-controlled storage or an encrypted file, never plain email.
-- `external`: for appraisers outside the firm. Everything is de-identified, and there are no prices, adjustments, values or links.
-
-Both modes always leave out the subject's address, unit and BBL, the exact effective date (month only), inspection notes, log text, folder names, client/borrower/lender/AMC/order details, non-ACRIS links and floor plan images. If a comp is the subject's own prior sale, its address, unit, BBL, price and exact date are masked.
+The script is `${CLAUDE_PLUGIN_ROOT}/tools/export_learning.py`. The export goes under the name setup saved in `settings/export.json` (like `dcohen`).
 
 ## Steps
 
-1. First time only: ask the appraiser for a contributor code (like `A-001`, not a name) and the mode, then run `export_learning.py init --contributor A-001 --mode firm`. To switch later, run `export_learning.py mode external`. Never put `settings/export.json` into an export or share it, because its salt keeps the assignment codes unreadable.
-2. Run `python3 -I ${CLAUDE_PLUGIN_ROOT}/tools/ledger.py check`. Fix any column problem before exporting.
-3. Run `python3 -I ${CLAUDE_PLUGIN_ROOT}/tools/export_learning.py build`. It writes `exports/_pending/<date>/` and prints `MANIFEST.md`.
-4. Show the appraiser:
-   - the mode, the MANIFEST table (files and row counts) and the "Left out" list;
-   - 3 sample rows from `assignments.csv`, `comp_candidates.csv` and `corrections.csv` (and `adjusted_comps.csv` in firm mode);
-   - every `BLOCK` and `CHECK` line from the leak scan.
-5. If the scan says BLOCKED, do not approve. Find the source line (usually a note in `shared/corrections.csv`, `shared/lessons.md`, an adjustment note or a building page), show it to the appraiser, and fix it with his OK. Edit only that text (in a CSV, only that one cell; never the header), note the fix in the assignment's `log.md`, run `ledger.py check`, and rebuild. Never weaken the scanner or edit the export files to make it pass.
-6. Ask the appraiser to choose: approve as is, drop files (`build --drop corrections.csv,lessons.md`), or leave out his comp choices (`build --no-selection`). Rebuild after any change.
-7. Only after he says approve: `export_learning.py approve`. It is logged in `exports/export_log.csv`. Tell him the zip name in `exports/`, and that he decides whether and how to send it.
+1. Run `python3 -I ${CLAUDE_PLUGIN_ROOT}/tools/ledger.py check`. Fix any column problem before exporting.
+2. Run `python3 -I ${CLAUDE_PLUGIN_ROOT}/tools/export_learning.py build`. It writes `exports/_pending/<date>/` and prints `MANIFEST.md`. If it says no name is saved, or the saved name isn't valid, run setup's name step (`setup_workspace.py --into <this folder> --name <name>`) and build again.
+3. Show the appraiser:
+   - the MANIFEST: the tables and their row counts, the files copied per assignment, and how many open assignments were left out;
+   - 3 sample rows each from `tables/assignments.csv`, `tables/comp_candidates.csv`, `tables/corrections.csv` and `tables/adjusted_comps.csv`.
+4. Ask whether to approve. If he wants something changed, fix it at its source with his OK (only that text; in a CSV only that one cell, never the header), note the fix in the assignment's `log.md`, run `ledger.py check`, and build again.
+5. Only after he says approve: `export_learning.py approve`. It zips the export to `exports/<date>_learning_<name>.zip` and logs it in `exports/export_log.csv`. Tell him the zip name, and that he sends it to the maintainer himself.
 
 ## What the export contains (tell the appraiser if asked)
 
-| File | Both modes | Firm mode adds |
-| --- | --- | --- |
-| assignments.csv | Borough, type, beds, baths, size band, decade built, building size band, search settings, counts, subject UAD condition/quality, error count | Final value, approach, value per sq ft |
-| comp_candidates.csv | Ranking features, score, rank, proposed, his keep/remove choice, comp UAD codes, distance band | Comp BBL, address, unit, exact distance, exact sale date, sale price, source, ACRIS link, beds, baths, size |
-| adjustments.csv / adjusted_comps.csv | none | His adjustment lines, plus net, gross and adjusted price computed by the script |
-| corrections.csv | AI value vs corrected value, month only, never both an assignment code and a building | Exact date, assignment code and building together |
-| lines.csv | Comp line measurements, month only, no assignment link | Exact date and assignment code |
-| errors.csv | Structured error codes per stage, month only | Exact timestamp |
-| timing.csv | Minutes per stage, working vs waiting | none |
-| plan_readings.csv / plan_results.csv | Room-by-room first and blind readings and totals, plan as a code | none |
-| building_notes.csv, lessons.md, evals_*.csv | Building facts, one-line lessons, calibration results (plan file names dropped) | none |
+Read it from the pending export: `README.md` describes every table, column and raw folder (the script generates it, so it always matches), and `MANIFEST.md` has the counts. Answer from those two files in plain words.

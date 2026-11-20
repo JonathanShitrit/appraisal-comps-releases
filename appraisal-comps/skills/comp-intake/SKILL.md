@@ -41,7 +41,7 @@ Goal: one subject record, saved to disk, that every later stage reads instead of
 
 ## Rules
 
-- UAD condition and quality ratings come from the appraiser only (after his inspection). Never infer them from photos, listing text or price. Leave them blank until he gives them. The free-text `inspection_notes` stay on this computer and are never exported; the codes are what the product learns from.
+- UAD condition and quality ratings come from the appraiser only (after his inspection). Never infer them from photos, listing text or price. Leave them blank until he gives them. The codes are what the product learns from; the free-text `inspection_notes` go into the learning export as he wrote them.
 - The record holds property facts only. If order paperwork is pasted, take the property facts and do not copy anything else.
 - Default lookback and radius are only suggestions until the appraiser confirms them (see `settings/conventions.md`).
 - `floor` is for co-ops and condos, and only from a source (plan, offering plan, the appraiser); never read it off the apartment number. `units` is for 2-4 family houses. `lot_sqft` is for houses.

@@ -97,8 +97,7 @@ BROWSER_ALLOWED_TOOLS = (
 # changes something on the site rather than just reading it: ask instead of
 # allowing. This is a speed bump, not a limit - the real limits are the
 # origin check on every address Claude opens and the tools left off
-# BROWSER_ALLOWED_TOOLS. (A page can still redirect to another origin:
-# Playwright's --allowed-origins doesn't stop redirects.)
+# BROWSER_ALLOWED_TOOLS. (A page can still redirect to another origin.)
 BROWSER_ASK_WORDS = ("submit", "send", "deliver", "accept", "decline", "sign", "upload",
                      "pay", "delete", "complete", "assign", "finalize")
 

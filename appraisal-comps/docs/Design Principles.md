@@ -10,7 +10,7 @@ For whoever changes the `appraisal-comps` plugin, `CLAUDE.md` or `rules.md` (loa
 
 ## Context and tools
 
-- Keep the always-loaded layer small and stable: no dates, assignment details or notes in `CLAUDE.md`, `rules.md` or skill descriptions. Each rule lives in one place; other files point to it.
+- Keep the always-loaded layer small and stable: no dates, assignment details or notes in `CLAUDE.md`, `rules.md` or skill descriptions. Each rule lives in one place; other files point to it. The current version is stated only in `.claude-plugin/plugin.json`: other docs point there, and name a version only as history ("added in 0.7.0").
 - Load just in time: keep paths and BBLs in context, and keep the full data in `data/*.csv`.
 - Scripts beat narrow tools. Give each script a whole job, clear inputs (absolute paths, fixed formats), lean output (a 40-row cap), error messages that say how to fix the problem, and parameters that make the wrong call hard.
 - Skills use progressive disclosure: the name and one line always, `SKILL.md` when relevant, scripts only when run.
@@ -18,9 +18,9 @@ For whoever changes the `appraisal-comps` plugin, `CLAUDE.md` or `rules.md` (loa
 
 ## Checks, memory and subagents
 
-- Every stage gets a check the agent can run, and the agent can never edit it (`calibration.csv`, the script checks, the leak scan). If a check fails, the agent reports it; it does not change the input to make it pass.
+- Every stage gets a check the agent can run, and the agent can never edit it (today's list: `Agent Workflow Plan.md` §4). If a check fails, the agent reports it; it does not change the input to make it pass.
 - Migrations must leave data readable by the version before them, so undo stays safe.
-- No self-grading. A separate reviewer with its own context (the blind comp-review) checks the work.
+- No self-grading. A separate reviewer with its own context checks the work.
 - Memory has layers: logs and data as ground truth, `progress.md` notes, one wiki page per building, and a small top layer (`lessons.md`, conventions). A fact is kept in one place. Consolidate monthly.
 - Subagents read, review, or measure into their own scratch files. One writer (the lead agent) owns the grid, `progress.md`, the log and `shared/`. Never run parallel writers on a shared file.
 
