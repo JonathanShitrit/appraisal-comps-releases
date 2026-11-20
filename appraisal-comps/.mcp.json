@@ -1,0 +1,1 @@
+{"mcpServers": {"browser": {"command": "python3", "args": ["-I", "${CLAUDE_PLUGIN_ROOT}/browser/launch.py"]}}}

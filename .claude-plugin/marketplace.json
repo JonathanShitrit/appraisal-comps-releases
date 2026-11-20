@@ -1,0 +1,13 @@
+{
+  "name": "appraisal-comps",
+  "owner": {
+    "name": "Jonathan Shitrit"
+  },
+  "plugins": [
+    {
+      "name": "appraisal-comps",
+      "source": "./appraisal-comps",
+      "description": "Comp data and drafts for a licensed residential appraiser. He owns every selection, adjustment and value."
+    }
+  ]
+}
