@@ -11,6 +11,7 @@ One agent with a computer, held inside a fixed six-stage workflow (rungs 2 and 3
 | Part | Weakness it covers |
 | --- | --- |
 | `nyc_sales.py` | Wrong joins and BBL formats; raw rows flooding context; comparing deed amounts by eye |
+| Source list (`tools/sources.py`) | Not knowing where to look first for a job in an area; re-finding the same county site every assignment |
 | `plan_area.py` | Arithmetic slips, double counts, misread digits, plans not to scale, sketch sides that don't close |
 | `bracket.py` | Comps that all sit on one side of the subject; a fixed shortlist size; unknown values quietly counted |
 | Blind reviewer subagent (comp-review) | Kind self-grading |
@@ -22,8 +23,9 @@ One agent with a computer, held inside a fixed six-stage workflow (rungs 2 and 3
 | `tests/run_tests.py` | A fix to one script silently breaking another |
 | Calibration set + scorer | Not knowing whether plan reading is good enough |
 | SessionStart hook | Rules that drift out of date in the chat; an update he never hears is ready |
-| PreToolUse guard | A protected-file or network rule that's only probabilistic; an injected listing talking the model past it |
-| Read-tier browser | Needing his logged-in sessions on the work sites, in his own Chrome so the sites don't flag a separate automated browser as a bot, without Claude typing his credentials |
+| PreToolUse guard | A protected-file or read-tier rule that's only probabilistic; an injected page talking the model past it; a coordinate click with no name of its own |
+| Read-tier browser | Needing his logged-in sessions on the work sites, and sites he asks to open: Browser Harness in his own Chrome, in a tab of its own. Pages are read with two fixed scripts (`read.js`, `elements.js`, matched by hash) and a click is checked against the element list; Claude never types his credentials |
+| `cloud_read.py` | His Chrome blocked on public sites; page snapshots filling Claude's context; a page the reader could misquote |
 
 Re-test every part when the model changes, and remove one part at a time. On clean, fully dimensioned plans a stronger model may not need the blind reviewer, but only the calibration set can show that.
 
@@ -57,15 +59,15 @@ The agent never edits `calibration.csv`, the tests or a script check (`rules.md`
 
 Once a month, run the consolidate-memory skill over `lessons.md` and the building pages.
 
-## 6. Rule of Two
+## 6. Hostile pages
 
 | Property | In this workflow |
 | --- | --- |
 | Untrusted input | Present: listing text, captions, pasted emails, and pages the browser reads. Treated as data |
 | Sensitive data | Present: the subject, his adjustments, value, notes and plan images |
-| Changes state / talks outside | Must be absent: writes stay in the folder, network use is read-only (`rules.md`, Rules) |
+| Talks outside | Present: open network (web search, fetch, any site in the browser), read-only (`rules.md`, Rules). A public read sends a fixed payload (address, public identifiers, the site skill) to browser-use, which also sees the public page |
 
-Each session already has two of the three, so the third is removed by limits, not rules: a rule can be talked past by an injected listing, a limit can't. The limits are the PreToolUse guard (`hooks/guard.py`), no send connectors in his project and a network allowlist if the app's admin settings offer one (Maintainer Checklist step 4), his own browser login (Claude never types a password), and his manual approval and sending of the export. What the guard can't see is in the current release's known limits in `CHANGELOG.md`; treat those as open risks.
+All three are present in every session (the Rule of Two was dropped in 0.10.0 so Claude can find property data anywhere). Against a hostile page the defense is the rule that pages are data, plus the limits that remain: the PreToolUse guard (`hooks/guard.py`: protected files, read-tier browser tools, the ask on submit-like clicks), no send connectors in his project (Maintainer Runbook, section 8.2), his own browser login (Claude never types a password), and his manual approval and sending of the export. Nothing stops an injected page from getting Claude to send assignment data out inside a URL; that and what else the guard can't see are in the current release's known limits in `CHANGELOG.md`; treat those as open risks.
 
 ## 7. Evals
 

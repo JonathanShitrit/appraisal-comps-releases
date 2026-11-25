@@ -13,13 +13,16 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import Callable
 
 
-def copy_missing(template: Path, target: Path) -> list[str]:
+def copy_missing(template: Path, target: Path, skip: Callable[[Path], bool] | None = None) -> list[str]:
     """Copy every file under template that is missing from target.
 
-    A file already in target is never overwritten. Returns one line per
-    file, "created <path>" or "kept <path>", with paths relative to target.
+    A file already in target is never overwritten. A file whose path
+    relative to template makes skip return true is neither copied nor
+    reported. Returns one line per file, "created <path>" or "kept <path>",
+    with paths relative to target.
     """
     report: list[str] = []
     target.mkdir(parents=True, exist_ok=True)
@@ -27,6 +30,8 @@ def copy_missing(template: Path, target: Path) -> list[str]:
         if template_path.is_dir():
             continue
         relative_path = template_path.relative_to(template)
+        if skip is not None and skip(relative_path):
+            continue
         target_path = target / relative_path
         if target_path.exists():
             report.append(f"kept {relative_path}")

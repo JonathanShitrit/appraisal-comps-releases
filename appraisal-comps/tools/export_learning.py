@@ -29,7 +29,7 @@ settings/plugin-state.json and exports/ never do: they describe the tool, not hi
 """
 from __future__ import annotations
 
-import argparse, csv, json, re, shutil, sys, zipfile
+import argparse, csv, fnmatch, json, re, shutil, sys, zipfile
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -258,10 +258,33 @@ JOINS = [
     "`evals_runs` and `evals_calibration` join on `plan_id`.",
 ]
 
+@dataclass(frozen=True)
+class ExcludedPath:
+    pattern: str    # fnmatch, against the POSIX path relative to the assignment folder, or to the workspace for settings/
+    owner: str      # the backlog item that owns the rule
+    reason: str
+
+
+EXCLUDED = (
+    ExcludedPath("data/cloud/*.txt", "B1", "page text from a cloud read"),
+    ExcludedPath("data/cloud/*.pdf", "B1", "a printed page from a cloud read"),
+    ExcludedPath("data/cloud/*.json", "B1", "records with quotes from a page; open.json"),
+    ExcludedPath("settings/browser-use.key", "B1", "the browser-use API key"),
+)
+
+
+def is_excluded(relative_path: Path) -> bool:
+    """True when the export must not copy this file."""
+    posix_path = relative_path.as_posix()
+    return any(fnmatch.fnmatchcase(posix_path, rule.pattern) for rule in EXCLUDED)
+
+
 RAW_SECTION = [
     "- `raw/assignments/<folder>/`: every file of each closed assignment, as it was: `subject.json`, "
     "`progress.md`, `log.md`, `events.csv`, `errors.csv`, `data/` (ranking, adjustments, conclusion) and "
     "`plans/` (plan images, room readings, results).",
+    "- `raw/assignments/<assignment>/data/cloud/runs.csv`: one row per cloud read (site, status, cost, tokens, "
+    "seconds). The pages and records themselves stay in his folder.",
     "- `raw/shared/`: all of `shared/`: building pages and `lines.csv`, `corrections.csv`, `lessons.md`, "
     "`evals/` with its plans.",
     "- `raw/settings/conventions.md`: the conventions he worked under.",
@@ -569,13 +592,13 @@ def copy_raw(out: Path, closed_folders: list[Path]) -> dict[str, int]:
     """Copy each closed assignment, shared/ and conventions.md (contents only). Returns files per raw folder."""
     file_counts: dict[str, int] = {}
     for folder in closed_folders:
-        copied = copy_missing(folder, out / "raw" / "assignments" / folder.name)
+        copied = copy_missing(folder, out / "raw" / "assignments" / folder.name, skip=is_excluded)
         file_counts[f"assignments/{folder.name}"] = len(copied)
     shared = ROOT / "shared"
     if shared.is_dir():
         file_counts["shared"] = len(copy_missing(shared, out / "raw" / "shared"))
     conventions = ROOT / "settings" / "conventions.md"
-    if conventions.exists():
+    if conventions.exists() and not is_excluded(Path("settings") / "conventions.md"):
         target = out / "raw" / "settings" / "conventions.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(conventions, target)

@@ -1,0 +1,97 @@
+{
+  "job": "listing-details",
+  "fields": [
+    {
+      "name": "sale_price",
+      "type": "number",
+      "unit": "usd",
+      "min": 1000,
+      "max": 100000000
+    },
+    {
+      "name": "sale_date",
+      "type": "date"
+    },
+    {
+      "name": "contract_date",
+      "type": "date"
+    },
+    {
+      "name": "list_price",
+      "type": "number",
+      "unit": "usd",
+      "min": 1000,
+      "max": 100000000
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "enum": {
+        "sold": [
+          "sold",
+          "closed"
+        ],
+        "active": [
+          "active",
+          "for sale"
+        ],
+        "pending": [
+          "pending",
+          "under contract",
+          "in contract"
+        ]
+      }
+    },
+    {
+      "name": "beds",
+      "type": "integer",
+      "min": 0,
+      "max": 20
+    },
+    {
+      "name": "baths",
+      "type": "number",
+      "min": 0,
+      "max": 20
+    },
+    {
+      "name": "living_sqft",
+      "type": "number",
+      "unit": "sqft",
+      "min": 100,
+      "max": 30000
+    },
+    {
+      "name": "lot_sqft",
+      "type": "number",
+      "unit": "sqft",
+      "min": 100,
+      "max": 5000000
+    },
+    {
+      "name": "lot_front_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 2000
+    },
+    {
+      "name": "lot_depth_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 5000
+    },
+    {
+      "name": "year_built",
+      "type": "integer",
+      "min": 1700,
+      "max": 2100
+    },
+    {
+      "name": "mls_number",
+      "type": "text",
+      "pattern": "^[A-Za-z]{0,3}\\d{5,10}$"
+    }
+  ]
+}

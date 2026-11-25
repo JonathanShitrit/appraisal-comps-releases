@@ -24,7 +24,7 @@ python3 -I ${CLAUDE_SKILL_DIR}/scripts/nyc_sales.py sales --bbl <BBL> --since <Y
 
 - Condo units and houses: run `nyc_sales.py acris --bbl <unit or house BBL> --expect-price <DOF price> --expect-date <DOF date>` on every condo or house candidate before you propose it (house sales are deeds too), and note the ACRIS link. The script prints `DEED CHECK:`. Anything other than MATCH (DATE_DIFF, MISMATCH, ZERO_DEED, PARTIAL) is flagged to the appraiser and logged as `ACRIS_MISMATCH`, not dropped silently. Don't compare amounts by eye.
 - Co-ops: share sales are not deeds in ACRIS. DOF sales (categories 09/10) are the public record. Say so in the source column. Bed/bath/size for co-ops must come from the appraiser's own sources or materials they upload.
-- Asking prices and listing pages are context only, never the sale price. Zillow is a work site (read it with the `browser-read` skill); the appraiser opens StreetEasy or Comps USA in their own session. Do not scrape them.
+- Asking prices and listing pages (Zillow, StreetEasy, others) are context only, never the sale price. Read them with the `browser-read` skill; don't bulk-scrape.
 
 ## 3. Score and rank
 
@@ -88,7 +88,7 @@ It takes the top 3 eligible candidates by rank, then adds a lower-ranked one onl
 
 1. Ranking table: rank, address/unit, sale date, price, distance, beds/baths (source), score, include/exclude with a one-line reason.
 2. The proposed comps and the coverage table from `bracket.py`.
-3. Ask the appraiser to paste MLS details (beds, baths, living area, condition) for the proposed comps and the next few by rank. Public data has none of these, so most of them start as `can't check`. Fill what he pastes into `ranking.csv` (sizes with `size_basis` `MLS`), then re-run `bracket.py propose` and show the new table.
+3. Before asking him to paste anything, run `python3 -I ${CLAUDE_PLUGIN_ROOT}/tools/sources.py lookup --job listing-details --area <subject's borough>` and read the proposed comps there with the `browser-read` skill. Ask the appraiser to paste MLS details (beds, baths, living area, condition) only for what that couldn't find, for the proposed comps and the next few by rank. Public data has none of these, so most of them start as `can't check`. Fill what he pastes into `ranking.csv` (sizes with `size_basis` `MLS`), then re-run `bracket.py propose` and show the new table.
 4. Update `progress.md` (stage 2-3 done, proposed comps, open gaps), append to `log.md` (queries run, counts, exclusions).
 5. Log `ledger.py event --assignment <folder> --stage 2-3 --event waiting --note "<n> candidates, <k> proposed"`. Stop and wait for the appraiser to approve the shortlist before any floor plan work.
 6. When he answers, set `appraiser_decision` in `ranking.csv`: `approved` for kept, `removed` for ones he drops, `added` for comps he adds (add a row for each). Log `--event approved`. If he removed or added a comp, also log a correction: `ledger.py correction --assignment <folder> --stage 2-3 --found-by appraiser --category comp_rank --field "<candidate_id>" --ai-value "proposed rank <r>" --corrected-value "removed" --note "<his reason, property facts only>"`.

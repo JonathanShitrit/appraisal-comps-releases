@@ -2,8 +2,17 @@
 """
 guard.py - the plugin's PreToolUse hook. Allows, denies or asks on every
 tool call matched by hooks.json: Edit, Write, MultiEdit, NotebookEdit,
-WebFetch (and the chat side's mcp__workspace__web_fetch), WebSearch (always denied), Bash (both the desktop app's own Bash tool and the sandbox's
-mcp__workspace__bash), and (Task 6) the browser's MCP tools.
+Bash (both the desktop app's own Bash tool and the sandbox's
+mcp__workspace__bash), and the browser's MCP tools (Browser Harness's).
+
+There are no network limits (0.10.0): web search, fetch, Bash and the
+browser may reach any site. What it checks is protected files (the
+calibration answer key, the plugin's own files) and the browser's
+read tier: only the read-tier tools; browser_js runs only the plugin's
+read.js and elements.js, matched by hash (browser_scripts.py); and a click
+by coordinates is checked against the element list that post_tool.py saved
+after the last elements.js call, so a click on something named like "Send"
+asks and a click with no fresh list is denied.
 
 This is a deterministic limit (Design Principles, "Trust"), not an
 instruction: it fails closed. Unreadable hook input is a deny with a
@@ -20,13 +29,14 @@ printed; deny or ask is exit 0 with
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import re
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal
-from urllib.parse import urlparse
 
 
 def _deny_and_exit(reason: str) -> None:
@@ -51,18 +61,14 @@ try:
 except Exception as _import_error:  # tools/workspace.py missing or broken: fail closed
     _deny_and_exit(f"guard failed to load workspace.py: {_import_error}")
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "browser"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from sites import origin_of, site_origins  # noqa: E402
-except Exception as _import_error:  # browser/sites.py missing or broken: fail closed
-    _deny_and_exit(f"guard failed to load sites.py: {_import_error}")
+    from browser_scripts import script_name  # noqa: E402
+except Exception as _import_error:  # hooks/browser_scripts.py missing or broken: fail closed
+    _deny_and_exit(f"guard failed to load browser_scripts.py: {_import_error}")
 
 MALFORMED_INPUT_REASON = "guard could not read the tool call"
 REPORT_INSTEAD = "report the failing check instead."
-
-DATA_HOSTS = ("data.cityofnewyork.us", "a836-acris.nyc.gov")
-
-NETWORK_COMMAND_WORDS = ("curl", "wget", "scp", "ssh", "nc", "ftp", "sftp")
 
 # Segments that mark a path as belonging to a plugin install, wherever it is
 # mounted. The last one carries no leading slash on purpose: it names a
@@ -71,41 +77,76 @@ NETWORK_COMMAND_WORDS = ("curl", "wget", "scp", "ssh", "nc", "ftp", "sftp")
 PLUGIN_PATH_SEGMENTS = ("/.claude/plugins/", "/.local-plugins/", "claude-hostloop-plugins/")
 
 CALIBRATION_FILENAME = "calibration.csv"
-WEBSEARCH_REASON = ("web search is not allowed in this project. Network use is read-only queries to "
-                    "NYC Open Data (data.cityofnewyork.us) and ACRIS (a836-acris.nyc.gov), and the "
-                    "browser on the plugin's work sites.")
-
+# The browser-use API key: only cloud_read.py (through browser_use_api.py) reads it.
+# The Read tool is not matched by the hooks yet, so a Read of it is not denied.
+KEY_FILENAME = "browser-use.key"
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 BASH_TOOLS = ("Bash", "mcp__workspace__bash")
-# WebFetch, and the desktop chat side's own fetch tool (desktop check, 2026-11-19).
-WEBFETCH_TOOLS = ("WebFetch", "mcp__workspace__web_fetch")
-
 # The app names plugin MCP tools mcp__plugin_<plugin>_<server>__<tool>; this
-# plugin's browser MCP server is named "browser", and its tools (Playwright's)
-# are themselves named browser_navigate, browser_snapshot, and so on.
-BROWSER_TOOL_PREFIX = "mcp__plugin_appraisal-comps_browser__browser_"
+# plugin's browser MCP server is named "browser", and its tools (Browser
+# Harness's) are themselves named browser_new_tab, browser_js, and so on.
+BROWSER_SERVER_PREFIX = "mcp__plugin_appraisal-comps_browser__"
+BROWSER_TOOL_PREFIX = BROWSER_SERVER_PREFIX + "browser_"
 
-# Read tier only (Design Principles, "Trust", Rule of Two): every browser
-# tool that only looks at or navigates the page. file_upload, evaluate,
-# run_code_unsafe, drag, drop, and any future tool are denied by omission.
-BROWSER_ALLOWED_TOOLS = (
-    "navigate", "navigate_back", "snapshot", "take_screenshot", "click", "hover",
-    "type", "press_key", "select_option", "fill_form", "wait_for", "tabs", "close", "find",
-)
+# Every tool the pinned Browser Harness server lists (the fixture
+# tests/fixtures/browser/harness-tools.json is its record). A test keeps this
+# in step with the fixture, so a Harness upgrade that adds a tool is noticed.
+HARNESS_TOOLS = ("new_tab", "goto", "page_info", "click", "type", "fill", "press", "scroll", "screenshot",
+                 "list_tabs", "current_tab", "switch_tab", "close_tab", "ensure_real_tab", "wait",
+                 "wait_for_load", "wait_for_element", "js", "cdp", "upload_file", "http_get",
+                 "solve_captcha", "start_recording", "stop_recording", "feedback", "report_run",
+                 "mark_tab", "name_session", "release_tabs")
 
-# A click or fill_form naming one of these, as a whole word, looks like it
-# changes something on the site rather than just reading it: ask instead of
-# allowing. This is a speed bump, not a limit - the real limits are the
-# origin check on every address Claude opens and the tools left off
-# BROWSER_ALLOWED_TOOLS. (A page can still redirect to another origin.)
+# Read tier only (Design Principles, "Trust"): the Harness tools that only
+# look at or move around a page, in a tab of its own. Everything else (raw
+# CDP, fetches outside the browser, uploads, the CAPTCHA solver, recordings,
+# vendor feedback, other tabs) and any tool a later Harness adds is denied
+# by omission.
+BROWSER_ALLOWED_TOOLS = ("new_tab", "goto", "page_info", "click", "type", "fill", "press", "scroll",
+                         "screenshot", "current_tab", "close_tab", "ensure_real_tab", "wait",
+                         "wait_for_load", "wait_for_element", "js")
+
+# What to do instead, for a denied tool. A tool with no hint gets the first
+# clause of the reason only.
+DENIED_TOOL_HINTS = {
+    "cdp": "read with read.js or elements.js through browser_js",
+    "http_get": "open the page with browser_goto, or use cloud_read.py for a public site",
+    "list_tabs": "work in the tab browser_new_tab opened; browser_current_tab names it",
+    "switch_tab": "work in the tab browser_new_tab opened; browser_current_tab names it",
+    "solve_captcha": "ask him to clear the check in Chrome",
+    "upload_file": "nothing is uploaded",
+    "start_recording": "use browser_screenshot",
+    "stop_recording": "use browser_screenshot",
+    "feedback": "nothing is sent to the vendor",
+    "report_run": "nothing is sent to the vendor",
+}
+
+# The names of the Harness tool inputs the guard reads. A test checks each
+# against the fixture.
+JS_EXPRESSION_KEY = "expression"
+URL_KEY = "url"
+CLICK_X_KEY = "x"
+CLICK_Y_KEY = "y"
+FILL_SELECTOR_KEY = "selector"
+
+# A click or fill on an element named with one of these, as a whole word, looks
+# like it changes something on the site rather than just reading it: ask
+# instead of allowing. This is a speed bump, not a limit - the real limit is
+# the tools left off BROWSER_ALLOWED_TOOLS.
 BROWSER_ASK_WORDS = ("submit", "send", "deliver", "accept", "decline", "sign", "upload",
-                     "pay", "delete", "complete", "assign", "finalize")
+                     "pay", "delete", "complete", "assign", "finalize", "email", "share")
 
-NETWORK_WORD_RE = re.compile(r"\b(?:" + "|".join(NETWORK_COMMAND_WORDS) + r")\b", re.IGNORECASE)
-URL_RE = re.compile(r"https?://[^\s'\"<>]+", re.IGNORECASE)
 BROWSER_ASK_WORD_RE = re.compile(r"\b(?:" + "|".join(BROWSER_ASK_WORDS) + r")\b", re.IGNORECASE)
 
+# The element list post_tool.py saved (browser-elements.json) is fresh for this long.
+ELEMENT_LIST_MAX_AGE_S = 120
+ELEMENTS_FILE = "browser-elements.json"
+
 Action = Literal["allow", "deny", "ask"]
+
+# What a click with no fresh element list gets. "ask" only if the maintainer
+# ships without PostToolUse (spec H5): then no list is ever saved.
+CLICK_WITHOUT_LIST: Action = "deny"
 
 
 @dataclass
@@ -133,6 +174,12 @@ def _is_calibration_csv(path_str: str) -> bool:
     return bool(parts) and parts[-1].casefold() == CALIBRATION_FILENAME.casefold()
 
 
+def _is_browser_use_key(path_str: str) -> bool:
+    """True when path_str's basename casefolds to browser-use.key, in any folder."""
+    parts = _lexical_parts(path_str)
+    return bool(parts) and parts[-1].casefold() == KEY_FILENAME.casefold()
+
+
 def _is_plugin_path(path_str: str) -> bool:
     """True when path_str names a file inside some plugin install: this
     guard's own plugin root, or a path carrying a known plugin-cache
@@ -158,45 +205,11 @@ def _decide_edit(tool_name: str, tool_input: dict[str, object]) -> Decision:
         return Decision("deny", MALFORMED_INPUT_REASON)
     if _is_calibration_csv(value):
         return Decision("deny", f"{value} is the appraiser's calibration answer key; {REPORT_INSTEAD}")
+    if _is_browser_use_key(value):
+        return Decision("deny", f"{value} is the browser-use key; only cloud_read.py reads it. "
+                                "Run cloud_read.py check-key to test it.")
     if _is_plugin_path(value):
         return Decision("deny", f"{value} is inside the plugin's own files; {REPORT_INSTEAD}")
-    return ALLOW
-
-
-def _url_host(url_str: str) -> str | None:
-    """The lowercased host of url_str, or None when it doesn't parse as
-    an http(s) URL, or is ambiguous between parsers: a backslash (the
-    WHATWG URL parser WebFetch and Node actually use treats "\\" as a
-    path separator; Python's urlparse doesn't) or userinfo before the
-    host (an "x@host" prefix can smuggle a different real host past a
-    parser that stops at the first "@")."""
-    if "\\" in url_str:
-        return None
-    try:
-        parsed = urlparse(url_str)
-    except ValueError:
-        return None
-    if parsed.username is not None or parsed.password is not None or "@" in parsed.netloc:
-        return None
-    if parsed.scheme not in ("http", "https"):
-        return None
-    return parsed.hostname
-
-
-def _is_data_host_url(url_str: str) -> bool:
-    host = _url_host(url_str)
-    return host is not None and host in DATA_HOSTS
-
-
-def _decide_webfetch(tool_input: dict[str, object]) -> Decision:
-    url_value = tool_input.get("url")
-    if not isinstance(url_value, str):
-        return Decision("deny", "WebFetch has no URL to check")
-    host = _url_host(url_value)
-    if host is None:
-        return Decision("deny", f"{url_value} does not parse as an unambiguous http(s) URL")
-    if host not in DATA_HOSTS:
-        return Decision("deny", f"{host} is not a data host")
     return ALLOW
 
 
@@ -206,108 +219,160 @@ def _decide_bash(tool_input: dict[str, object]) -> Decision:
         return Decision("deny", MALFORMED_INPUT_REASON)
     if CALIBRATION_FILENAME in command.casefold():
         return Decision("deny", f"command names {CALIBRATION_FILENAME}; {REPORT_INSTEAD}")
-    word_match = NETWORK_WORD_RE.search(command)
-    if word_match is not None:
-        return Decision("deny", f"command uses {word_match.group()}, which is not allowed")
-    for url_match in URL_RE.finditer(command):
-        url_str = url_match.group()
-        if not _is_data_host_url(url_str):
-            return Decision("deny", f"{url_str} is not a data host")
+    if KEY_FILENAME in command.casefold():
+        return Decision("deny", f"command names {KEY_FILENAME}; run cloud_read.py check-key instead.")
     return ALLOW
 
 
 BROWSER_ASK_DECISION = Decision("ask", "this looks like it changes something on this site; the appraiser decides")
 
 
-def _browser_ask_texts(browser_tool: str, tool_input: dict[str, object]) -> list[str]:
-    """The text fields to check against BROWSER_ASK_WORD_RE for browser_tool:
-    a click's or fill_form's own "element" (if present - falls back to no
-    text, never a crash, when it's missing), plus - for fill_form - each
-    item in "fields"' own "name" and "element" (Playwright's fill_form input
-    is {"fields": [{"name": .., "type": .., "value": .., "element"? .., ..}]};
-    binding decision 5 checks both)."""
-    texts: list[str] = []
-    element = tool_input.get("element")
-    if isinstance(element, str):
-        texts.append(element)
-    if browser_tool == "fill_form":
-        fields = tool_input.get("fields")
-        if isinstance(fields, list):
-            for field in fields:
-                if isinstance(field, dict):
-                    for key in ("name", "element"):
-                        value = field.get(key)
-                        if isinstance(value, str):
-                            texts.append(value)
-    return texts
+@dataclass
+class ListedElement:
+    name: str
+    selector: str
+    x: float
+    y: float
+    w: float
+    h: float
 
 
-def _decide_browser_url(url_value: object) -> Decision:
-    """Shared by navigate and by a tabs call that carries a url (R12: a new
-    tab can load a page exactly like navigate does, so it needs the same
-    origin check - a tabs call with no url, e.g. list/switch/close, is left
-    to the caller, since it never leaves the allowed origins at all)."""
-    if not isinstance(url_value, str) or not url_value:
-        return Decision("deny", MALFORMED_INPUT_REASON)
-    origin = origin_of(url_value)
-    if origin and origin in site_origins():
+@dataclass
+class BrowserState:
+    elements: list[ListedElement] | None  # None: no fresh element list
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _listed_element(item: object) -> ListedElement | None:
+    """One element of the saved list, or None when it isn't the shape post_tool.py writes."""
+    if not isinstance(item, dict):
+        return None
+    name = item.get("name")
+    selector = item.get("selector")
+    box = [item.get(key) for key in ("x", "y", "w", "h")]
+    if not isinstance(name, str) or not isinstance(selector, str):
+        return None
+    if not all(_is_number(value) for value in box):
+        return None
+    return ListedElement(name, selector, box[0], box[1], box[2], box[3])
+
+
+def _read_elements(path: Path, now: float) -> list[ListedElement] | None:
+    """The fresh element list in path, or None: missing, unreadable, malformed, from the future or too old."""
+    try:
+        saved = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(saved, dict):
+        return None
+    saved_at = saved.get("saved_at")
+    items = saved.get("items")
+    if not _is_number(saved_at) or not isinstance(items, list):
+        return None
+    age_s = now - saved_at
+    if age_s < 0 or age_s > ELEMENT_LIST_MAX_AGE_S:
+        return None
+    elements: list[ListedElement] = []
+    for item in items:
+        element = _listed_element(item)
+        if element is None:
+            return None
+        elements.append(element)
+    return elements
+
+
+def load_browser_state(plugin_data: str | None, now: float) -> BrowserState:
+    """The element list post_tool.py saved, if there is a fresh one. Never raises."""
+    if not plugin_data:
+        return BrowserState(None)
+    try:
+        return BrowserState(_read_elements(Path(plugin_data) / ELEMENTS_FILE, now))
+    except Exception:
+        return BrowserState(None)
+
+
+def _is_web_address(value: object) -> bool:
+    return isinstance(value, str) and value.lower().startswith(("http://", "https://"))
+
+
+def _decide_browser_address(browser_tool: str, tool_input: dict[str, object]) -> Decision:
+    """goto and new_tab open http and https addresses only (new_tab may open a blank tab)."""
+    only_web = Decision("deny", f"browser_{browser_tool} opens http and https addresses only")
+    if browser_tool == "new_tab" and URL_KEY not in tool_input:
         return ALLOW
-    return Decision("deny", f"{origin or url_value} is not one of the plugin's work sites")
+    address = tool_input.get(URL_KEY)
+    if browser_tool == "new_tab" and address == "about:blank":
+        return ALLOW
+    if _is_web_address(address):
+        return ALLOW
+    return only_web
 
 
-def _decide_browser_filename(filename: object) -> Decision:
-    """Browser tools that save a file (take_screenshot, snapshot, ...) take a
-    "filename". Only a plain file name, which Playwright saves in its own
-    output folder, is allowed: anything absolute, with a folder separator
-    or "..", could land anywhere, and a protected name is refused outright."""
-    if not isinstance(filename, str):
+def _names_an_action(element: ListedElement) -> bool:
+    return BROWSER_ASK_WORD_RE.search(element.name) is not None
+
+
+def _decide_browser_click(tool_input: dict[str, object], browser_state: BrowserState) -> Decision:
+    x = tool_input.get(CLICK_X_KEY)
+    y = tool_input.get(CLICK_Y_KEY)
+    if not _is_number(x) or not _is_number(y) or x < 0 or y < 0:
         return Decision("deny", MALFORMED_INPUT_REASON)
-    if "/" in filename or "\\" in filename or ".." in filename:
-        return Decision("deny", f"browser filename {filename!r} must be a plain file name, like page.png")
-    if filename.casefold() == CALIBRATION_FILENAME.casefold():
-        return Decision("deny", f"browser filename {filename!r} is a protected file name")
+    if browser_state.elements is None:
+        return Decision(CLICK_WITHOUT_LIST,
+                        "run elements.js first (browser_js with the plugin's elements.js), then click")
+    for element in browser_state.elements:
+        inside_horizontally = element.x <= x <= element.x + element.w
+        inside_vertically = element.y <= y <= element.y + element.h
+        if inside_horizontally and inside_vertically and _names_an_action(element):
+            return BROWSER_ASK_DECISION
     return ALLOW
 
 
-def _decide_browser(tool_name: str, tool_input: dict[str, object]) -> Decision:
+def _decide_browser_fill(tool_input: dict[str, object], browser_state: BrowserState) -> Decision:
+    if browser_state.elements is None:
+        return ALLOW
+    selector = tool_input.get(FILL_SELECTOR_KEY)
+    for element in browser_state.elements:
+        if element.selector == selector and _names_an_action(element):
+            return BROWSER_ASK_DECISION
+    return ALLOW
+
+
+def _decide_browser(tool_name: str, tool_input: dict[str, object], browser_state: BrowserState) -> Decision:
     browser_tool = tool_name[len(BROWSER_TOOL_PREFIX):]
     if browser_tool not in BROWSER_ALLOWED_TOOLS:
-        return Decision("deny", f"browser_{browser_tool} is not a read-tier tool")
-    if "filename" in tool_input:
-        filename_decision = _decide_browser_filename(tool_input.get("filename"))
-        if filename_decision.action != "allow":
-            return filename_decision
-    if browser_tool == "navigate":
-        return _decide_browser_url(tool_input.get("url"))
-    if browser_tool == "tabs" and "url" in tool_input:
-        return _decide_browser_url(tool_input.get("url"))
-    if browser_tool in ("click", "fill_form"):
-        texts = _browser_ask_texts(browser_tool, tool_input)
-        if BROWSER_ASK_WORD_RE.search(" ".join(texts)):
-            # Playwright's click/fill_form input carries no URL (just
-            # element/target, or field names), so there's no site to name here.
-            return BROWSER_ASK_DECISION
-    if browser_tool == "type" and tool_input.get("submit") is True:
-        # R14: typing into a field and pressing Enter/submitting it can act
-        # just like a submit-like click. "is True" on purpose: a truthy
-        # string ("true") or 1 is not Playwright's own boolean and must not
-        # trigger this by accident.
-        return BROWSER_ASK_DECISION
+        reason = f"browser_{browser_tool} is not a read-tier tool"
+        hint = DENIED_TOOL_HINTS.get(browser_tool)
+        if hint:
+            reason += f"; {hint}"
+        return Decision("deny", reason)
+    if browser_tool == "js":
+        if script_name(tool_input.get(JS_EXPRESSION_KEY)) is None:
+            return Decision("deny", "page scripts run only from the plugin's scripts: read.js to read a page, "
+                                    "elements.js to list what can be clicked. Send the file's text unchanged.")
+        return ALLOW
+    if browser_tool in ("goto", "new_tab"):
+        return _decide_browser_address(browser_tool, tool_input)
+    if browser_tool == "click":
+        return _decide_browser_click(tool_input, browser_state)
+    if browser_tool == "fill":
+        return _decide_browser_fill(tool_input, browser_state)
     return ALLOW
 
 
-def decide(tool_name: str, tool_input: dict[str, object]) -> Decision:
+def decide(tool_name: str, tool_input: dict[str, object], browser_state: BrowserState) -> Decision:
     """Pure: no I/O, no filesystem writes."""
     if tool_name in EDIT_TOOLS:
         return _decide_edit(tool_name, tool_input)
-    if tool_name in WEBFETCH_TOOLS:
-        return _decide_webfetch(tool_input)
-    if tool_name == "WebSearch":
-        return Decision("deny", WEBSEARCH_REASON)
     if tool_name in BASH_TOOLS:
         return _decide_bash(tool_input)
     if tool_name.startswith(BROWSER_TOOL_PREFIX):
-        return _decide_browser(tool_name, tool_input)
+        return _decide_browser(tool_name, tool_input, browser_state)
+    if tool_name.startswith(BROWSER_SERVER_PREFIX):
+        return Decision("deny", f"{tool_name} is not a read-tier browser tool")
     return ALLOW
 
 
@@ -334,7 +399,8 @@ def decide_from_raw(raw: str) -> Decision:
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         return Decision("deny", MALFORMED_INPUT_REASON)
-    return decide(tool_name, tool_input)
+    browser_state = load_browser_state(os.environ.get("CLAUDE_PLUGIN_DATA"), time.time())
+    return decide(tool_name, tool_input, browser_state)
 
 
 def _hook_output(decision: Decision) -> str | None:

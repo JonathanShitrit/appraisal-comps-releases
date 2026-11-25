@@ -1,6 +1,79 @@
 # Changelog
 
-Release steps: `maintainer/Maintainer Checklist.md` step 10.
+Release steps: `maintainer/Maintainer Runbook.md`, section 3.5.
+
+## 0.11.0 (2026-11-25)
+
+Principles touched (`docs/Design Principles.md`): simplest setup that works (a script call, not a subagent driving a browser); each part fixes a seen weakness (blocks in his Chrome, Q17 and the spike; page snapshots filling Claude's context); state lives in files (`data/cloud/` and `runs.csv`); scripts beat narrow tools (one `cloud_read.py` call per read); every stage has a check the agent can't edit (`quote_check.py` checks each value's quote against a page saved by code; `ledger.py check` on `runs.csv`); pages are data; open network with deterministic limits (a fixed task text, local-only hosts, query patterns, cost caps). Stage 2 (logged-in sites): each part fixes a seen weakness, and parts are removed one at a time (the shim and humanizer didn't clear Zillow's check and are removed; the element list exists because a coordinate click has no name); prefer deterministic limits (page scripts matched by hash, deny by omission, telemetry off by environment and by the guard); one rule in one place (the pin in `launch.py`; the scripts in `browser/scripts/`).
+
+What changed:
+- New `tools/cloud_read.py` with four commands. `read` reads one public listing or county page in browser-use Cloud and prints one line plus the values it accepted. `run` does up to five requests from request files in parallel. `show` lists the last reads. `check-key` tests the key and prints the credit left. Claude no longer drives a browser for public sites.
+- Code saves the page the run ended on (address, text and PDF) over CDP, and `quote_check.py` accepts a value only when its quote is found in that saved text and the value is in the quote. The reader's own words are never evidence.
+- The source list has a `reader` column: `cloud` or `chrome`. The shipped defaults mark OneKey MLS, Reggora, AppraisalPort, DwellingBlocks, ValueConnect and Aivre as `chrome` (local-only hosts: they can never be read in the cloud); everything else is `cloud`. `sources.py add --reader` sets it.
+- What is saved in his assignment's `data/cloud/`: for listings, each read's record (`c-NNN-<site>.json`), page text and PDF; for property cards and tax maps, the record only (the page is deleted after validation, quotes blanked); `runs.csv` (one row per cloud run, validated by `ledger.py check`).
+- The key lives in `settings/browser-use.key` (one line), added by the maintainer on the setup call. Setup's new step 5 runs `check-key`. The guard denies Edit and Write on that file name and any Bash command that names it.
+- Three ledger codes: `CLOUD_BLOCKED`, `CLOUD_FAILED`, `CLOUD_BUDGET`.
+- The learning export keeps `data/cloud/runs.csv` only; the pages, records and `open.json` stay in his folder.
+- New skills `zillow` and `streeteasy` (outlines, written for the cloud reader; revised after watched runs). `browser-read` gains "Public sites"; `rules.md`, his README, the Design Principles and the Agent Workflow Plan name the cloud read.
+- Only a property's address, public record numbers and the fixed rules are sent: the query must be an address, a BBL, an MLS number or a parcel id; `--match` takes only a sale date, apartment, MLS number or town; `--url` takes only a listed host. Runs are capped ($0.50 each, 300 s, 5 at a time).
+
+- Stage 2: the browser server is Browser Harness 0.1.14 (`uvx`, pinned in `launch.py`) in his own Chrome, over CDP, in a tab of its own. One-time setup is `uv` and "Allow remote debugging" at `chrome://inspect/#remote-debugging`; Chrome asks him to click Allow once per session, and the Playwright Extension can be removed. Node is no longer needed.
+- Pages are read with `browser_js` running `browser/scripts/read.js`, and what can be clicked is listed with `elements.js`. The guard allows `browser_js` only for those two scripts, matched by SHA-256 of their text with whitespace collapsed.
+- The guard's read tier is Harness's tools: `new_tab`, `goto`, `page_info`, `click`, `type`, `fill`, `press`, `scroll`, `screenshot`, `current_tab`, `close_tab`, `ensure_real_tab`, `wait`, `wait_for_load`, `wait_for_element` and `js`. Everything else (raw CDP, `http_get`, tab listing and switching, uploads, the CAPTCHA solver, recordings, vendor feedback) is denied by omission, and a tool the pinned server lists that the guard doesn't know is denied too. `goto` and `new_tab` open only `http` and `https` addresses.
+- A new PostToolUse hook, `hooks/post_tool.py`, saves each element list (names, selectors and boxes, never values) and the page's origin to `$CLAUDE_PLUGIN_DATA`. A click by coordinates is denied without a fresh list (under 120 seconds old, and no acting call since), asks when it lands on an element named like "Send", and is allowed otherwise. A fill asks the same way by selector. `email` and `share` join the ask words.
+- The tool list the guard relies on is checked against `product/tests/fixtures/browser/harness-tools.json`, which `maintainer/dump_mcp_tools.py` makes from the pinned server.
+- Install guide, setup step 4, his README and the checklist name `uv` and "Allow remote debugging" in place of Node and the extension.
+
+Removed:
+- `browser/runtime-shim.cjs`, `browser/humanize.cjs`, `browser/humanize-plan.cjs`, the vendored `humanjs-core` and the node tests; Node as a requirement; Playwright MCP and its extension.
+- The guard's rule on browser file names, R14 (ask on `browser_type` with `submit`) and `browser_mouse_wheel` (Harness has no such tools).
+
+Breaking:
+- His `shared/sources.csv` gains a column the next time `sources.py add` writes it. The version before this one can't read the new file.
+
+Known limits:
+- browser-use sees every public page read, owner names on county pages included, and holds a record that this account looked up each address. Deleting a session there hides it but does not destroy the run's data; only an enterprise purge does.
+- Zillow's and StreetEasy's terms forbid automated access. Using the service on them is the appraiser's choice (question H2).
+- The key sits in a file. Hooks don't match the Read tool yet, so Claude is not stopped from opening it.
+- A site that blocks the service is passed, not opened in his Chrome.
+- Measured on 76 reads with `bu-4.0-mini` (spec, Results, "Stage 1"): Zillow 6% blocked, the NYC Property Information Portal 0%, and a page saved on every read. StreetEasy shows a login wall on 13% of reads and finds no page on half; it misses the bar and its default row is still open (H3). Westchester County GIS (an interactive ArcGIS map) timed out at 300 s on both runs and is not usable by the cloud reader yet. The quote check accepted 90% of Zillow's fields, 88% of the portal's and 56% of StreetEasy's against a 95% bar; most rejections are dates not in `YYYY-MM-DD`, a unit on `year_built`, and quotes not found in the page. The `bu-4.0` comparison, the PDF comparison and the desktop-app check (V22) are not done.
+- The ledger's `cost_usd` is the agent's cost as the API reports it and leaves out browser and proxy charges. The account's credit fell about 3.3 times as much as the recorded sum; treat `cost_usd` as a lower bound.
+- `check-key` can't show the key's monthly cap; the billing endpoint has no cap field. A 402 shows the cap and the amount spent.
+- The reader's agent is a third party's model: the saved page comes from code, the reading does not. The quote check catches invented values, not a page that lies.
+
+- Stage 2: remote debugging stays ticked in his everyday Chrome, so any program on his Mac can ask to connect; he must refuse a prompt he didn't expect.
+- The ask on a click rests on a list the page itself supplies, so a hostile page can label a send button "Next", and a clickable `div` isn't listed at all. Each click needs its own `elements.js` call.
+- The token saving over 0.10.0 was measured in two pairs of runs, not the three runs per page the plan asks for: Harness used 22% and 41% less input in total (cache reads included), and 18% and 2% less new input. A heavier site, such as an MLS results page, could differ. A read finished with Chrome behind other windows or minimized. No human check showed on AppraisalPort or the two Zillow pages; none was tried on an MLS. The click prompt on a button named like "Send" was not seen live, only in the unit tests. The page scripts were checked by hand on AppraisalPort (M3); the Node test runs them against a fake page only.
+- If the desktop app gives hooks no PostToolUse, every click is denied (spec H5). Checked in the desktop app (V20): it does fire.
+- Menu items that are not links or buttons (AppraisalPort's Orders, Announcements and notification entries) are not in the element list, so Claude can't click them. It can still open their address with `browser_goto` when it knows it; a subagent that didn't know it stopped. Where a site needs this, its site skill should give the address. Icon-only links have an empty name, so the ask words can't match them.
+- `browser_screenshot` saves its image in Harness's own folder (`~/.config/browser-harness/tmp/`), which the desktop app won't let Claude read. Screenshots don't work there until the skill passes a path inside the workspace.
+- A subagent opens a tab of its own, so a job that uses subagents can have more than one of Claude's tabs open (V21). They share the one Chrome connection and the one Allow prompt.
+
+Cost: the ledger records about $0.02 a read (median $0.016 on Zillow and the portal, $0.020 on StreetEasy); the account's credit fell about 3.3 times as much, which is about $0.07 a read, or $1.40 to $1.75 for an assignment of 20 to 25 reads. The 3.3 is an upper bound from a mixed session, not one batch measured alone, so the estimate of $0.05 to $0.10 a read, $1 to $2.50 an assignment, still stands until it is.
+
+## 0.10.0 (2026-11-20)
+
+Principles touched (`docs/Design Principles.md`): Trust (the Rule of Two is removed; deterministic limits now cover protected files and the read-tier browser only; the read tier gains one tool that only scrolls, and the coordinate tools that click or drag at a spot stay denied). The appraiser wants Claude to find property data sources in any county. Design, rules come from real cases (the browser spike met a reCAPTCHA that the human-check phrases didn't name; Zillow showed Press & Hold to the stock browser in his Chrome, and stalled clicks in a background window); each part fixes a specific weakness (the shim hides one bot signal, the humanizer another).
+
+What changed:
+- No network limits. Claude may search the web, fetch any page, run network commands in Bash, and open any site in his Chrome. The guard no longer checks web addresses, and web search is no longer denied.
+- The built-in work-site list (`browser/sites.py`) is gone. The work sites are still named in the browser skill, as the sites he's logged in to.
+- Still enforced: the protected files (`calibration.csv`, the plugin's own files), read-tier browser tools only (no uploads, page scripts, drag or drop), plain browser file names, the ask on submit-like clicks, and failing closed. Claude still never types a password, and he still approves and sends the export himself.
+- His folder's README says Claude can open other sites; an existing folder keeps its old copy.
+- A source list, in two layers: the defaults shipped in the plugin (`product/sources/defaults.csv`) and his own list (`shared/sources.csv`). `tools/sources.py lookup --job <job> --area <area>` gives Claude the sites to try first, in order; `sources.py add` adds a site to his list, only after he says yes. His list goes out in the weekly export.
+- Claude can scroll pages with the mouse wheel. The browser now starts with `--caps vision`, which adds Playwright's mouse tools, and the guard allows only `browser_mouse_wheel`, since scrolling only looks at the page. The other mouse tools (`browser_mouse_move_xy`, `browser_mouse_click_xy`, `browser_mouse_drag_xy`, `browser_mouse_down`, `browser_mouse_up`) click or drag at a spot, so they stay denied. A test fails if the launcher and the guard ever disagree about the wheel.
+- The browser no longer saves a copy of each page it opens (`--snapshot-mode none`). Before, every page load and click wrote the page's text, client details included, to a `.playwright-mcp/` folder. Claude reads the page with `browser_find` or `browser_snapshot`, which work as before. Only the page's console errors reach Claude now (`--console-level error`).
+- The browser hides two things bot checks look for: CDP's `Runtime.enable`, and machine-like input. In his Chrome, Zillow showed "Press & Hold" to the stock browser. Two modules from the humanized-browser spike (its results file was deleted later; it is in git history) now load with every browser start:
+  - `browser/runtime-shim.cjs` (loaded through `NODE_OPTIONS`): Playwright never sends `Runtime.enable`, a well-known bot signal; the shim tells Playwright about each page's scripts itself. It also keeps each tab drawing while his Chrome window is behind other windows or minimized. Before, every click timed out after 5 s there.
+  - `browser/humanize.cjs` (`--init-page`): clicks and hovers follow a curved mouse path and take 0.5 to 0.9 s, typing has a human rhythm, wheel scrolls come in many small steps, and each page load is followed by a 1 to 1.6 s pause. It uses `@humanjs/core` 0.8.0, copied into `browser/vendor/humanjs-core/` (MIT).
+  - Each fails open: if one can't load, the browser runs stock and its log says `runtime-shim: disabled` or `humanize: disabled`. `APPRAISAL_COMPS_NO_RUNTIME_SHIM=1` and `APPRAISAL_COMPS_NO_HUMANIZE=1` turn them off.
+  - Not humanized: going back, choosing from a list, single key presses, checkboxes in a form, and the Enter that submits typed text.
+- Fewer, smaller browser calls. browser-read checks each page for a human check with one `browser_find`, not one per phrase or a full snapshot, and reads a big page's facts with `browser_find` before reaching for a full snapshot. It makes that human-check call on its own and waits for the result before any other browser call on the page: in a test, a scroll sent alongside it ran while Press & Hold was up.
+- A checkbox named "I'm not a robot" (Google's reCAPTCHA) is now a human check too: Claude stops and asks him to clear it, as for "Press & Hold". The word "reCAPTCHA" alone, as in a site's footer, isn't one. His folder's `README.md` names it among the examples (new folders only).
+
+Rule of Two and known limits:
+- Every session now holds untrusted input, sensitive data and a way to talk outside. An injected page or listing could get Claude to send assignment data out inside a URL, by search, fetch, Bash or the browser. Only the rule that pages are data stands in the way.
+- Nothing limits which sites Claude reads, so it can read sites whose terms forbid automated access; which sites to use stays the appraiser's call.
 
 ## 0.9.1 (2026-11-19)
 

@@ -18,8 +18,8 @@ You don't need any commands. Say what you want:
 | To | Say |
 | --- | --- |
 | start a job | "New assignment: 123 Main St, Brooklyn" |
-| read a work site | "Open Zillow" or paste a listing link |
-| see which sites Claude can read | "Which sites can you read?" |
+| read a work site | "Open OneKey MLS" or paste an order link |
+| find a county's property data | "Find the tax map for Yonkers" |
 | finish a job | "This assignment is done" |
 | send what Claude learned | "Run the learning export" |
 
@@ -35,12 +35,14 @@ Claude stops and waits for you at each of these:
 
 ## Work sites in your Chrome
 
-Claude reads the work sites in your own Chrome, where you're already logged in.
+Public sites, such as Zillow, StreetEasy and county property sites, are read by an outside service (browser-use). It is sent the property's address and record numbers and nothing about your client. It sees the public page, and it clears human checks there itself.
 
-- **Connect page.** Each session, the first time Claude opens a site, Chrome shows a connect page. Approve it once.
+Claude reads the work sites in your own Chrome, where you're already logged in. It can also search the web and open any other site, such as a county's tax map or property cards, to find property data. It only reads; it never submits anything. Claude starts with the sites on your list for each job, and asks before adding a new one.
+
+- **Allow the connection.** Setup ticks "Allow remote debugging" in your Chrome. The first time Claude opens a site in a session, Chrome asks you to allow the connection. Click Allow. If Chrome ever asks when you didn't just ask Claude to open a site, click Cancel and tell the maintainer.
 - **Logging in.** If a site shows a login page, Claude asks you to log in yourself in Chrome. It never types a password.
-- **Its own tabs.** Claude opens its pages in its own tab group and tells you when it does.
-- **Human checks.** If a site shows a check like "Press & Hold" or "verify you are human", Claude stops and asks you to clear it in Chrome yourself, then carries on. It never clicks on these checks.
+- **Its own tab.** Claude opens its pages in a tab of its own and tells you when it does.
+- **Human checks.** If a site shows a check like "Press & Hold", "verify you are human" or "I'm not a robot", Claude stops and asks you to clear it in your Chrome yourself, then carries on. It never clicks on these checks.
 
 ## Updates
 

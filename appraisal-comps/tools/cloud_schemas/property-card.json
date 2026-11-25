@@ -1,0 +1,67 @@
+{
+  "job": "property-card",
+  "fields": [
+    {
+      "name": "living_sqft",
+      "type": "number",
+      "unit": "sqft",
+      "min": 100,
+      "max": 30000
+    },
+    {
+      "name": "year_built",
+      "type": "integer",
+      "min": 1700,
+      "max": 2100
+    },
+    {
+      "name": "beds",
+      "type": "integer",
+      "min": 0,
+      "max": 20
+    },
+    {
+      "name": "baths",
+      "type": "number",
+      "min": 0,
+      "max": 20
+    },
+    {
+      "name": "lot_sqft",
+      "type": "number",
+      "unit": "sqft",
+      "min": 100,
+      "max": 5000000
+    },
+    {
+      "name": "lot_front_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 2000
+    },
+    {
+      "name": "lot_depth_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 5000
+    },
+    {
+      "name": "stories",
+      "type": "number",
+      "min": 1,
+      "max": 6
+    },
+    {
+      "name": "parcel_id",
+      "type": "text",
+      "max_length": 40
+    },
+    {
+      "name": "property_class",
+      "type": "text",
+      "max_length": 60
+    }
+  ]
+}

@@ -1,0 +1,631 @@
+{
+  "command": [
+    "uvx",
+    "--from",
+    "browser-harness[mcp]==0.1.14",
+    "browser-harness-mcp"
+  ],
+  "tools": [
+    {
+      "name": "browser_cdp",
+      "inputSchema": {
+        "properties": {
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Params"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "type": "object",
+        "title": "browser_cdpArguments"
+      }
+    },
+    {
+      "name": "browser_click",
+      "inputSchema": {
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "integer"
+          },
+          "y": {
+            "title": "Y",
+            "type": "integer"
+          },
+          "button": {
+            "default": "left",
+            "title": "Button",
+            "type": "string"
+          },
+          "clicks": {
+            "default": 1,
+            "title": "Clicks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object",
+        "title": "browser_clickArguments"
+      }
+    },
+    {
+      "name": "browser_close_tab",
+      "inputSchema": {
+        "properties": {
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "title": "browser_close_tabArguments"
+      }
+    },
+    {
+      "name": "browser_current_tab",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_current_tabArguments"
+      }
+    },
+    {
+      "name": "browser_ensure_real_tab",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_ensure_real_tabArguments"
+      }
+    },
+    {
+      "name": "browser_feedback",
+      "inputSchema": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "category": {
+            "default": "bug",
+            "title": "Category",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "title": "browser_feedbackArguments"
+      }
+    },
+    {
+      "name": "browser_fill",
+      "inputSchema": {
+        "properties": {
+          "selector": {
+            "title": "Selector",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "clear_first": {
+            "default": true,
+            "title": "Clear First",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "selector",
+          "text"
+        ],
+        "type": "object",
+        "title": "browser_fillArguments"
+      }
+    },
+    {
+      "name": "browser_goto",
+      "inputSchema": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "title": "browser_gotoArguments"
+      }
+    },
+    {
+      "name": "browser_http_get",
+      "inputSchema": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 20.0,
+            "title": "Timeout",
+            "type": "number"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Headers"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "title": "browser_http_getArguments"
+      }
+    },
+    {
+      "name": "browser_js",
+      "inputSchema": {
+        "properties": {
+          "expression": {
+            "title": "Expression",
+            "type": "string"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Id"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "type": "object",
+        "title": "browser_jsArguments"
+      }
+    },
+    {
+      "name": "browser_list_tabs",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_list_tabsArguments"
+      }
+    },
+    {
+      "name": "browser_mark_tab",
+      "inputSchema": {
+        "properties": {
+          "mark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          }
+        },
+        "required": [
+          "mark"
+        ],
+        "type": "object",
+        "title": "browser_mark_tabArguments"
+      }
+    },
+    {
+      "name": "browser_name_session",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "title": "browser_name_sessionArguments"
+      }
+    },
+    {
+      "name": "browser_new_tab",
+      "inputSchema": {
+        "properties": {
+          "url": {
+            "default": "about:blank",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "title": "browser_new_tabArguments"
+      }
+    },
+    {
+      "name": "browser_page_info",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_page_infoArguments"
+      }
+    },
+    {
+      "name": "browser_press",
+      "inputSchema": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "modifiers": {
+            "default": 0,
+            "title": "Modifiers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "title": "browser_pressArguments"
+      }
+    },
+    {
+      "name": "browser_release_tabs",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_release_tabsArguments"
+      }
+    },
+    {
+      "name": "browser_report_run",
+      "inputSchema": {
+        "properties": {
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Failure Reason"
+          },
+          "gotchas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Gotchas"
+          },
+          "bot_block": {
+            "default": false,
+            "title": "Bot Block",
+            "type": "boolean"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object",
+        "title": "browser_report_runArguments"
+      }
+    },
+    {
+      "name": "browser_screenshot",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Path"
+          },
+          "full": {
+            "default": false,
+            "title": "Full",
+            "type": "boolean"
+          },
+          "max_dim": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Max Dim"
+          }
+        },
+        "type": "object",
+        "title": "browser_screenshotArguments"
+      }
+    },
+    {
+      "name": "browser_scroll",
+      "inputSchema": {
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "integer"
+          },
+          "y": {
+            "title": "Y",
+            "type": "integer"
+          },
+          "dy": {
+            "default": -300,
+            "title": "Dy",
+            "type": "integer"
+          },
+          "dx": {
+            "default": 0,
+            "title": "Dx",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object",
+        "title": "browser_scrollArguments"
+      }
+    },
+    {
+      "name": "browser_solve_captcha",
+      "inputSchema": {
+        "properties": {
+          "start_timeout": {
+            "default": 20.0,
+            "title": "Start Timeout",
+            "type": "number"
+          },
+          "timeout": {
+            "default": 75.0,
+            "title": "Timeout",
+            "type": "number"
+          }
+        },
+        "type": "object",
+        "title": "browser_solve_captchaArguments"
+      }
+    },
+    {
+      "name": "browser_start_recording",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "title": "browser_start_recordingArguments"
+      }
+    },
+    {
+      "name": "browser_stop_recording",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "browser_stop_recordingArguments"
+      }
+    },
+    {
+      "name": "browser_switch_tab",
+      "inputSchema": {
+        "properties": {
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "type": "object",
+        "title": "browser_switch_tabArguments"
+      }
+    },
+    {
+      "name": "browser_type",
+      "inputSchema": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object",
+        "title": "browser_typeArguments"
+      }
+    },
+    {
+      "name": "browser_upload_file",
+      "inputSchema": {
+        "properties": {
+          "selector": {
+            "title": "Selector",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "path"
+        ],
+        "type": "object",
+        "title": "browser_upload_fileArguments"
+      }
+    },
+    {
+      "name": "browser_wait",
+      "inputSchema": {
+        "properties": {
+          "seconds": {
+            "default": 1.0,
+            "title": "Seconds",
+            "type": "number"
+          }
+        },
+        "type": "object",
+        "title": "browser_waitArguments"
+      }
+    },
+    {
+      "name": "browser_wait_for_element",
+      "inputSchema": {
+        "properties": {
+          "selector": {
+            "title": "Selector",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 10.0,
+            "title": "Timeout",
+            "type": "number"
+          },
+          "visible": {
+            "default": false,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object",
+        "title": "browser_wait_for_elementArguments"
+      }
+    },
+    {
+      "name": "browser_wait_for_load",
+      "inputSchema": {
+        "properties": {
+          "timeout": {
+            "default": 15.0,
+            "title": "Timeout",
+            "type": "number"
+          }
+        },
+        "type": "object",
+        "title": "browser_wait_for_loadArguments"
+      }
+    }
+  ]
+}

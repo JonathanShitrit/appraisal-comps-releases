@@ -44,7 +44,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace import plugin_version, require_workspace
 
-ROOT = require_workspace(Path.cwd())
+ROOT: Path  # the workspace; set at the top of main(), so importing this module needs no workspace
 VERSION = plugin_version()
 
 EVENTS = ["timestamp", "stage", "event", "version", "note"]
@@ -62,6 +62,8 @@ RANKING = ["candidate_id", "bbl", "address", "apt", "same_building", "distance_m
 ERRORS = ["timestamp", "stage", "code", "detail", "version"]
 ADJ = ["candidate_id", "feature", "amount", "note", "recorded_on", "version"]
 CONCL = ["final_value", "approach", "note", "recorded_on", "version"]
+CLOUD_RUNS = ["id", "site", "job", "status", "model", "input_tokens", "output_tokens", "cost_usd", "seconds",
+              "fields_ok", "fields_rejected", "capture", "at", "version"]
 ERROR_CODES = {
     "DATA_QUERY_FAILED": "an Open Data / ACRIS query errored or timed out",
     "BBL_NOT_FOUND": "PLUTO/ACRIS had no record for the BBL given",
@@ -84,6 +86,9 @@ ERROR_CODES = {
     "BROWSER_BLOCKED": "a browser call was denied by the guard",
     "BROWSER_CHALLENGE": "a site showed a human check; the appraiser cleared it, or it stayed blocked",
     "APPRAISER_REDO": "the appraiser asked to redo a stage",
+    "CLOUD_BLOCKED": "a public site blocked the cloud browser after a retry",
+    "CLOUD_FAILED": "a cloud read failed, timed out or returned the wrong shape",
+    "CLOUD_BUDGET": "browser-use has no credit, or the key's cap is reached",
     "TOOL_ERROR": "a script or tool failed for another reason",
     "UPDATE_FAILED": "a migration failed at the first session on a new version",
     "OTHER": "anything else (say what in --detail)",
@@ -190,13 +195,20 @@ def money(s):
         die(f"'{s}' is not a dollar amount")
 
 
+def log_error(assignment: Path, stage: str, code: str, detail: str) -> None:
+    """Append one errors.csv row to the assignment. Raises ValueError for a code not in ERROR_CODES."""
+    if code not in ERROR_CODES:
+        raise ValueError(f"unknown error code {code}")
+    row = {"timestamp": datetime.now().isoformat(timespec="minutes"), "stage": stage, "code": code,
+           "detail": clean_note(detail), "version": VERSION}
+    append(assignment / "errors.csv", ERRORS, row)
+
+
 def cmd_error(a):
     d = assignment_dir(a.assignment)
     if a.code not in ERROR_CODES:
         die("code must be one of:\n" + "\n".join(f"  {k}: {v}" for k, v in ERROR_CODES.items()))
-    row = {"timestamp": datetime.now().isoformat(timespec="minutes"), "stage": a.stage, "code": a.code,
-           "detail": clean_note(a.detail), "version": VERSION}
-    append(d / "errors.csv", ERRORS, row)
+    log_error(d, a.stage, a.code, a.detail)
     print(f"error logged: {a.code}")
 
 
@@ -225,7 +237,8 @@ def cmd_check(a):
         if d.is_dir() and not d.name.startswith("_"):
             targets += [(d / "events.csv", EVENTS), (d / "data" / "ranking.csv", RANKING),
                         (d / "errors.csv", ERRORS), (d / "data" / "adjustments.csv", ADJ),
-                        (d / "data" / "conclusion.csv", CONCL)]
+                        (d / "data" / "conclusion.csv", CONCL),
+                        (d / "data" / "cloud" / "runs.csv", CLOUD_RUNS)]
     for p, header in targets:
         if not p.exists():
             continue
@@ -245,6 +258,8 @@ def cmd_check(a):
 
 
 def main():
+    global ROOT
+    ROOT = require_workspace(Path.cwd())
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = p.add_subparsers(dest="cmd", required=True)
     s = sp.add_parser("event"); s.add_argument("--assignment", required=True); s.add_argument("--stage", required=True)

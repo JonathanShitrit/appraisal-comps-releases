@@ -1,0 +1,38 @@
+{
+  "job": "tax-map-lot",
+  "fields": [
+    {
+      "name": "lot_sqft",
+      "type": "number",
+      "unit": "sqft",
+      "min": 100,
+      "max": 5000000
+    },
+    {
+      "name": "lot_front_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 2000
+    },
+    {
+      "name": "lot_depth_ft",
+      "type": "number",
+      "unit": "ft",
+      "min": 5,
+      "max": 5000
+    },
+    {
+      "name": "lot_acres",
+      "type": "number",
+      "unit": "acres",
+      "min": 0.01,
+      "max": 1000
+    },
+    {
+      "name": "parcel_id",
+      "type": "text",
+      "max_length": 40
+    }
+  ]
+}

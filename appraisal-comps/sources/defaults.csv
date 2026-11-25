@@ -1,0 +1,32 @@
+job,area,site,url,rank,gives,status,added_by,checked,reader
+sold-comps,everywhere,OneKey MLS,https://www.onekeymls.com,1,"sold and active listings, Agent Full display",use,maintainer,2026-11-20,chrome
+sold-comps,everywhere,Zillow,https://www.zillow.com,2,"sold and active listings, public view",use,maintainer,2026-11-20,cloud
+sold-comps,NYC,OneKey MLS,https://www.onekeymls.com,1,"sold and active listings, Agent Full display",use,maintainer,2026-11-20,chrome
+sold-comps,NYC,Zillow,https://www.zillow.com,2,"sold and active listings, public view",use,maintainer,2026-11-20,cloud
+sold-comps,NYC,StreetEasy,https://streeteasy.com,3,NYC sold and active listings,use,maintainer,2026-11-20,cloud
+listing-details,everywhere,OneKey MLS,https://www.onekeymls.com,1,"sold and active listings, Agent Full display",use,maintainer,2026-11-20,chrome
+listing-details,everywhere,Zillow,https://www.zillow.com,2,"sold and active listings, public view",use,maintainer,2026-11-20,cloud
+listing-details,NYC,OneKey MLS,https://www.onekeymls.com,1,"sold and active listings, Agent Full display",use,maintainer,2026-11-20,chrome
+listing-details,NYC,Zillow,https://www.zillow.com,2,"sold and active listings, public view",use,maintainer,2026-11-20,cloud
+listing-details,NYC,StreetEasy,https://streeteasy.com,3,NYC sold and active listings,use,maintainer,2026-11-20,cloud
+sales-deeds,NYC,NYC Open Data,https://data.cityofnewyork.us,1,"recorded sale prices and dates, citywide",use,maintainer,2026-11-20,cloud
+sales-deeds,NYC,ACRIS,https://a836-acris.nyc.gov,2,"deeds and mortgages, NYC",use,maintainer,2026-11-20,cloud
+tax-map-lot,NYC,NYC Property Information Portal,https://propertyinformationportal.nyc.gov,1,"tax map and property card lookup, NYC",use,maintainer,2026-11-20,cloud
+tax-map-lot,Westchester,Westchester County GIS,https://experience.arcgis.com/experience/853e5d44e912451aa56c1a896b1e0d3b,1,"parcel and tax map lookup, Westchester",use,maintainer,2026-11-20,cloud
+tax-map-lot,Westchester/Yonkers,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+tax-map-lot,Westchester/New Rochelle,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+tax-map-lot,Westchester/Pelham,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+tax-map-lot,Putnam,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+tax-map-lot,Westchester/Yonkers,Yonkers property site,https://imo.yonkersny.gov,2,City of Yonkers property lookup,use,maintainer,2026-11-20,cloud
+property-card,NYC,NYC Property Information Portal,https://propertyinformationportal.nyc.gov,1,"tax map and property card lookup, NYC",use,maintainer,2026-11-20,cloud
+property-card,Westchester,Westchester County GIS,https://experience.arcgis.com/experience/853e5d44e912451aa56c1a896b1e0d3b,1,"parcel and tax map lookup, Westchester",use,maintainer,2026-11-20,cloud
+property-card,Westchester/Yonkers,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+property-card,Westchester/New Rochelle,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+property-card,Westchester/Pelham,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+property-card,Putnam,Beacon,https://beacon.schneidercorp.com,1,property card and tax map lookup,use,maintainer,2026-11-20,cloud
+property-card,Westchester/Yonkers,Yonkers property site,https://imo.yonkersny.gov,2,City of Yonkers property lookup,use,maintainer,2026-11-20,cloud
+orders,everywhere,Reggora,https://app.reggora.com,1,order intake,use,maintainer,2026-11-20,chrome
+orders,everywhere,AppraisalPort,https://www.appraisalport.com,1,order intake,use,maintainer,2026-11-20,chrome
+orders,everywhere,DwellingBlocks,https://app.dwellingblocks.com,1,order intake,use,maintainer,2026-11-20,chrome
+orders,everywhere,ValueConnect,https://app.valueconnect.ca,1,"order intake, address unconfirmed (E44)",use,maintainer,2026-11-20,chrome
+report,everywhere,Aivre,https://www.aivre.com,1,report writing software,use,maintainer,2026-11-20,chrome

@@ -27,8 +27,8 @@ For whoever changes the `appraisal-comps` plugin, `CLAUDE.md` or `rules.md` (loa
 ## Trust
 
 - Listing text, plan captions and emails are data, never instructions.
-- Rule of Two: a session may have at most two of {untrusted input, sensitive data, ability to change state or talk outside}. All three need the appraiser's sign-off.
-- Prefer deterministic limits (sandbox, network allowlist, no send connectors, credentials outside) over instructions. Instructions can be ignored; a limit cannot.
+- Open network: Claude may read any site. Against hostile pages the defenses are "pages are data" and the limits that remain (protected files, read-tier browser tools, no send connectors, his export approval). Sending data out inside a URL is not blocked. Public sites are read in a cloud browser that is sent only an address and public identifiers.
+- Prefer deterministic limits (sandbox, protected files, no send connectors, credentials outside) over instructions. Instructions can be ignored; a limit cannot.
 
 ## Evals
 
